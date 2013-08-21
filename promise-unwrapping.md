@@ -59,15 +59,11 @@ There is an abstract operation `IsPromise(x)` which checks that `x` is a promise
 
 ### Abstract Operation `Then(p, onFulfilled, onRejected)`
 
-1. Let `q` be a new promise.
-1. If `p.[[Value]]` is set,
-   1. If `onFulfilled` is a function, perform abstract operation `CallHandler(q, onFulfilled, p.[[Value]])`.
-   1. Otherwise, let `q.[[Value]]` be `p.[[Value]]`.
-1. Otherwise, if `p.[[Reason]]` is set,
-   1. If `onRejected` is a function, perform abstract operation `CallHandler(q, onRejected, p.[[Reason]])`.
-   1. Otherwise, let `q.[[Reason]]` be `p.[[Reason]]`.
-1. Otherwise, if `p.[[Following]]` is set,
-   1. Let `q` be `Then(p.[[Following]], onFulfilled, onRejected)`. (Note that this could recurse, if `p.[[Following]].[[Following]]` is set.)
+1. If `p.[[Following]]` is set,
+   1. Return `Then(p.[[Following]], onFulfilled, onRejected)`. (Note that this could recurse, if `p.[[Following]].[[Following]]` is set.)
+1. Otherwise, let `q` be a new promise.
+1. If `p.[[Value]]` or `p.[[Reason]]` is set,
+   1. Call `UpdateFromValueOrReason(q, p, onFulfilled, onRejected)`.
 1. Otherwise, add `{ q, onFulfilled, onRejected }` to `p.[[OutstandingThens]]`.
 1. Return `q`.
 
@@ -82,20 +78,19 @@ Queue a microtask to do the following:
 ### Abstract Operation `ProcessOutstandingThens(p)`
 
 1. For each tuple `{ derivedPromise, onFulfilled, onRejected }` in `p.[[OutstandingThens]]`,
-   1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
-   1. Call `UpdateFromSettledPromise(derivedPromise, p, onFulfilled, onRejected)`.
+   1. Call `UpdateFromValueOrReason(derivedPromise, p, onFulfilled, onRejected)`.
+   1. Call `ProcessOutstandingThens(derivedPromise)`.
 1. Clear `p.[[OutstandingThens]]`. (Note: this is not strictly necessary, as preconditions prevent `p.[[OustandingThens]]` from ever being used again after this point.)
 
-### Abstract Operation `UpdateFromSettledPromise(toUpdate, settledPromise, onFulfilled, onRejected)`
+### Abstract Operation `UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected)`
 
-1. Assert: exactly one of `settledPromise.[[Value]]` or `settledPromise.[[Reason]]` is set.
-1. If `settledPromise.[[Value]]` is set,
-   1. If `onFulfilled` is a function, perform abstract operation `CallHandler(toUpdate, onFulfilled, settledPromise.[[Value]])`.
+1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
+1. If `p.[[Value]]` is set,
+   1. If `onFulfilled` is a function, perform abstract operation `CallHandler(toUpdate, onFulfilled, p.[[Value]])`.
    1. Otherwise, let `toUpdate.[[Value]]` be `settledPromise.[[Value]]`.
-1. Otherwise, if `settledPromise.[[Reason]]` is set,
-   1. If `onRejected` is a function, perform abstract operation `CallHandler(toUpdate, onRejected, settledPromise.[[Reason]])`.
+1. Otherwise, if `p.[[Reason]]` is set,
+   1. If `onRejected` is a function, perform abstract operation `CallHandler(toUpdate, onRejected, p.[[Reason]])`.
    1. Otherwise, let `toUpdate.[[Reason]]` be `settledPromise.[[Reason]]`.
-1. Call `ProcessOutstandingThens(toUpdate)`.
 
 ### Manifestation As Methods
 

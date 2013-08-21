@@ -103,7 +103,7 @@ As you'd expect:
 
 The reason we don't express the algorithms above in terms of exact method calls is so that the side effects are not observable, and thus implementations can optimize as long as they follow these semantics. E.g. they could inline part of the recursion of the `Then` abstract operation, instead of necessarily triggering any overwritten `then` methods and possibly messing up internal state. This may be unnecessary and overcautious though; thoughts?
 
-## Cursory Explanation
+### Cursory Explanation
 
 The recursion happens in two ways:
 
@@ -111,3 +111,18 @@ The recursion happens in two ways:
 - In `Resolve` and `Reject`, if the promise becomes settled and there are `[[OutstandingThens]]` queued up on it, `ProcessOutstandingThens` will process those outstanding `then` calls, recursively processing any other `then` calls on promises derived from those promises.
 
 The above does not memoize the results of recursive `then`ing. That is, after traversing the chain of followed promises to finally find a settled one, you could theoretically overwrite the original promise's `[[Value]]` or `[[Reason]]` so that future `Then` calls on that promise do not need to do the chain traversal. But, this should not matter for the pure-promises case; the result should always be the same.
+ 
+### Relation to States and Fates
+
+Note that you cannot derive a promise's state from `[[Following]]`, `[[Value]]`, and `[[Reason]]` directly, e.g. a promise may be fulfilled even if `p.[[Value]]` is unset, as long as `p.[[Following]].[[Value]]` or `p.[[Following]].[[Following]].[[Value]]` or ... is set. The full list is:
+
+#### States
+
+- A promise `p` is fulfilled if `p.[[Value]]` is set, or if `p.[[Following]]` is fulfilled.
+- A promise `p` is rejected if `p.[[Reason]]` is set, or if `p.[[Following]]` is rejected.
+- A promise `p` is pending if `p.[[Value]]` and `p.[[Reason]]` are unset, and either `p.[[Following]]` is unset or `p.[[Following]]` is pending.
+
+#### Fates
+
+- A promise `p` is resolved if `p.[[Value]]`, `p.[[Reason]]`, or `p.[[Following]]` are set.
+- A promise `p` is unresolved if none of `p.[[Value]]`, `p.[[Reason]]`, or `p.[[Following]]` are set.

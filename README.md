@@ -2,34 +2,7 @@
 
 In a world with only `resolve`, `reject`, and `then`, what is the *exact* algorithm for how these interact? We want to maintain forward-compatibility with a full "AP2" proposal that includes `accept` and `flatMap`, in particular by doing only one level of unwrapping in `resolve` and leaving the rest for `then`.
 
-TODO: handle infinite recursion better.
-
-## States and Fates
-
-Promises have three possible mutually exclusive states: fulfilled, rejected, and pending.
-
-- A promise is fulfilled if `promise.then(f)` will call `f` "as soon as possible."
-- A promise is rejected if `promise.then(undefined, r)` will call `r` "as soon as possible."
-- A promise is pending if it is neither fulfilled nor rejected.
-
-We say that a promise is settled if it is not pending, i.e. if it is either fulfilled or rejected. Being settled is not a state, just a linguistic convenience.
-
-Promises have two possible mutually exclusive fates: resolved, and unresolved.
-
-- A promise is resolved if calling any of its resolver's methods has no effect, i.e. the promise has been "locked in" to either follow another promise, or has been fulfilled or rejected.
-- A promise is unresolved if it is not resolved, i.e. if calling `resolver.resolve` or `resolver.reject` will impact the promise.
-
-A promise can be "resolved to" either a promise, in which case it follows the promise, or a non-promise value, in which case it is fulfilled with that value.
-
-A promise whose fate is resolved can be in any of the three states:
-
-- Fulfilled, if its resolver's `resolve` has been called with a non-promise value, or if its resolver's `resolve` has been called with another promise that is fulfilled.
-- Rejected, if its resolver's `reject` has been called with a value, or if its resolver's `resolve` has been called with another promise that is rejected.
-- Pending, if its resolver's `resolve` has been called with another promise that is pending.
-
-Note that these definitions are recursive, e.g. a promise that has been resolved to a promise that has been resolved to a promise that has been fulfilled is itself fulfilled.
-
-## Operations, Pure Promises Version
+## Specification Primitives (Pure Promises Version)
 
 This version does not contain the concept of thenables, and is thus simpler since it does not have to compensate for malicious behavior.
 
@@ -94,7 +67,7 @@ Queue a microtask to do the following:
    1. If `onRejected` is a function, perform abstract operation `CallHandler(toUpdate, onRejected, p.[[Reason]])`.
    1. Otherwise, let `toUpdate.[[Reason]]` be `p.[[Reason]]`.
 
-### Manifestation As Methods
+## Manifestation As Methods
 
 As you'd expect:
 
@@ -105,7 +78,7 @@ As you'd expect:
 
 The reason we express the abstract operations first, and define the methods only indirectly in terms of that, is so that the above algorithms can call the abstract operations without fear of triggering overwritten or trapped versions of the methods. This also guarantees that side effects are not observable, and thus implementations can optimize as long as they follow these semantics. E.g. they could inline part of the recursion of the `Then` abstract operation, and avoid being forced to trigger any overwritten `then` methods and possibly messing up internal state.
 
-### Cursory Explanation
+## Cursory Explanation
 
 The recursion happens in two ways:
 
@@ -113,18 +86,3 @@ The recursion happens in two ways:
 - In `Resolve` and `Reject`, if the promise becomes settled and there are `[[OutstandingThens]]` queued up on it, `ProcessOutstandingThens` will process those outstanding `then` calls, recursively processing any other `then` calls on promises derived from those promises.
 
 The above does not memoize the results of recursive `then`ing. That is, after traversing the chain of followed promises to finally find a settled one, you could theoretically overwrite the original promise's `[[Value]]` or `[[Reason]]` so that future `Then` calls on that promise do not need to do the chain traversal. But, this should not matter for the pure-promises case; the result should always be the same.
- 
-### Relation to States and Fates
-
-Note that you cannot derive a promise's state from `[[Following]]`, `[[Value]]`, and `[[Reason]]` directly, e.g. a promise may be fulfilled even if `p.[[Value]]` is unset, as long as `p.[[Following]].[[Value]]` or `p.[[Following]].[[Following]].[[Value]]` or ... is set. The full list is:
-
-#### States
-
-- A promise `p` is fulfilled if `p.[[Value]]` is set, or if `p.[[Following]]` is fulfilled.
-- A promise `p` is rejected if `p.[[Reason]]` is set, or if `p.[[Following]]` is rejected.
-- A promise `p` is pending if `p.[[Value]]` and `p.[[Reason]]` are unset, and either `p.[[Following]]` is unset or `p.[[Following]]` is pending.
-
-#### Fates
-
-- A promise `p` is resolved if `p.[[Value]]`, `p.[[Reason]]`, or `p.[[Following]]` are set.
-- A promise `p` is unresolved if none of `p.[[Value]]`, `p.[[Reason]]`, or `p.[[Following]]` are set.

@@ -6,16 +6,20 @@ In a world with only `resolve`, `reject`, and `then`, what is the *exact* algori
 
 This version does not contain the concept of thenables, and is thus simpler since it does not have to compensate for malicious behavior.
 
-### Basics
+### Promise Internal Properties
 
 A promise `p` carries several internal properties:
 
+- `p.[[IsPromise]]`: all promises have this property, and no other objects do.
 - `p.[[Following]]`: either unset, or a promise that `p` is following.
 - `p.[[Value]]`: either unset, or promise's direct fulfillment value (derived by calling its resolver's `resolve` with a non-promise).
 - `p.[[Reason]]`: either unset, or a promise's direct rejection reason (derived by calling its resolver's `reject`).
 - `p.[[OustandingThens]]`: a list, initially empty, of `{ promise, onFulfilled, onRejected }` tuples that need to be processed once one of the above three properties is set.
 
-There is an abstract operation `IsPromise(x)` which checks that `x` is a promise; this could be as simple as `x instanceof Promise` or a more complex branding mechanism.
+### Abstract Operation `IsPromise(x)`
+
+1. Return `true` if `x.[[IsPromise]]` is set.
+1. Otherwise, return `false`.
 
 ### Abstract Operation `Resolve(p, x)`
 

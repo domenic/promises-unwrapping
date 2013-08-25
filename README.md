@@ -14,11 +14,11 @@ A promise `p` carries several internal properties:
 - `p.[[Following]]`: either unset, or a promise that `p` is following.
 - `p.[[Value]]`: either unset, or promise's direct fulfillment value (derived by calling its resolver's `resolve` with a non-promise).
 - `p.[[Reason]]`: either unset, or a promise's direct rejection reason (derived by calling its resolver's `reject`).
-- `p.[[OustandingThens]]`: a list, initially empty, of `{ promise, onFulfilled, onRejected }` tuples that need to be processed once one of the above three properties is set.
+- `p.[[OutstandingThens]]`: a list, initially empty, of `{ promise, onFulfilled, onRejected }` tuples that need to be processed once one of the above three properties is set.
 
 ### Abstract Operation `IsPromise(x)`
 
-1. Return `true` if `x.[[IsPromise]]` is set.
+1. Return `true` if `IsObject(x)` and `x.[[IsPromise]]` is set.
 1. Otherwise, return `false`.
 
 ### Abstract Operation `Resolve(p, x)`
@@ -46,14 +46,6 @@ A promise `p` carries several internal properties:
 1. Otherwise, add `{ q, onFulfilled, onRejected }` to `p.[[OutstandingThens]]`.
 1. Return `q`.
 
-### Abstract Operation `CallHandler(returnedPromise, handler, argument)`
-
-Queue a microtask to do the following:
-
-1. Call `handler(argument)`.
-1. If this call throws an exception `e`, do `Reject(returnedPromise, e)`.
-1. Otherwise, let `v` be its return value, and call `Resolve(returnedPromise, v)`.
-
 ### Abstract Operation `ProcessOutstandingThens(p)`
 
 1. For each tuple `{ derivedPromise, onFulfilled, onRejected }` in `p.[[OutstandingThens]]`,
@@ -65,11 +57,19 @@ Queue a microtask to do the following:
 
 1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
 1. If `p.[[Value]]` is set,
-   1. If `onFulfilled` is a function, perform abstract operation `CallHandler(toUpdate, onFulfilled, p.[[Value]])`.
+   1. If `IsCallable(onFulfilled)`, call `CallHandler(toUpdate, onFulfilled, p.[[Value]])`.
    1. Otherwise, let `toUpdate.[[Value]]` be `p.[[Value]]`.
 1. Otherwise, if `p.[[Reason]]` is set,
-   1. If `onRejected` is a function, perform abstract operation `CallHandler(toUpdate, onRejected, p.[[Reason]])`.
+   1. If `IsCallable(onRejected)`, call `CallHandler(toUpdate, onRejected, p.[[Reason]])`.
    1. Otherwise, let `toUpdate.[[Reason]]` be `p.[[Reason]]`.
+
+### Abstract Operation `CallHandler(returnedPromise, handler, argument)`
+
+Queue a microtask to do the following:
+
+1. Call `handler(argument)`.
+1. If this call throws an exception `e`, do `Reject(returnedPromise, e)`.
+1. Otherwise, let `v` be its return value, and call `Resolve(returnedPromise, v)`.
 
 ## Manifestation As Methods
 

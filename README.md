@@ -50,7 +50,6 @@ A promise `p` carries several internal properties:
 
 1. For each tuple `{ derivedPromise, onFulfilled, onRejected }` in `p.[[OutstandingThens]]`,
    1. Call `UpdateFromValueOrReason(derivedPromise, p, onFulfilled, onRejected)`.
-   1. Call `ProcessOutstandingThens(derivedPromise)`.
 1. Clear `p.[[OutstandingThens]]`. (Note: this is not strictly necessary, as preconditions prevent `p.[[OustandingThens]]` from ever being used again after this point.)
 
 ### Abstract Operation `UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected)`
@@ -58,10 +57,10 @@ A promise `p` carries several internal properties:
 1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
 1. If `p.[[Value]]` is set,
    1. If `IsCallable(onFulfilled)`, call `CallHandler(toUpdate, onFulfilled, p.[[Value]])`.
-   1. Otherwise, let `toUpdate.[[Value]]` be `p.[[Value]]`.
+   1. Otherwise, let `toUpdate.[[Value]]` be `p.[[Value]]` and call `ProcessOutstandingThens(toUpdate)`.
 1. Otherwise, if `p.[[Reason]]` is set,
    1. If `IsCallable(onRejected)`, call `CallHandler(toUpdate, onRejected, p.[[Reason]])`.
-   1. Otherwise, let `toUpdate.[[Reason]]` be `p.[[Reason]]`.
+   1. Otherwise, let `toUpdate.[[Reason]]` be `p.[[Reason]]` and call `ProcessOutstandingThens(toUpdate)`.
 
 ### Abstract Operation `CallHandler(returnedPromise, handler, argument)`
 

@@ -1,7 +1,7 @@
 "use strict";
 var assert = require("assert");
 
-var UNSET = {};
+var UNSET = { "unset": "UNSET" };
 
 // NOTE!!! This is not normal JavaScript; it's used as a sanity check for the spec. JavaScript promises do not work this
 // way, e.g. they have methods instead of these capitalized functions! Do not use this for anything real!
@@ -67,7 +67,6 @@ function Then(p, onFulfilled, onRejected) {
 function ProcessOutstandingThens(p) {
     p._outstandingThens.forEach(function (tuple) {
         UpdateFromValueOrReason(tuple.derivedPromise, p, tuple.onFulfilled, tuple.onRejected);
-        ProcessOutstandingThens(tuple.derivedPromise);
     });
 
     // TODO: test claim that this is not necessary by commenting it out.
@@ -82,12 +81,14 @@ function UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected) {
             CallHandler(toUpdate, onFulfilled, p._value);
         } else {
             toUpdate._value = p._value;
+            ProcessOutstandingThens(toUpdate);
         }
     } else if (is_set(p._reason)) {
         if (IsCallable(onRejected)) {
             CallHandler(toUpdate, onRejected, p._reason);
         } else {
             toUpdate._reason = p._reason;
+            ProcessOutstandingThens(toUpdate);
         }
     }
 }

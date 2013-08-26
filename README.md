@@ -26,49 +26,69 @@ A promise `p` carries several internal properties:
 1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, terminate these steps.
 1. If `IsPromise(x)`,
    1. If `x.[[Following]]` is set, let `p.[[Following]]` be `x.[[Following]]`.
-   1. Otherwise, if `x.[[Value]]` is set, let `p.[[Value]]` be `x.[[Value]]` and call `ProcessOutstandingThens(p)`.
-   1. Otherwise, if `x.[[Reason]]` is set, let `p.[[Reason]]` be `x.[[Reason]]` and call `ProcessOutstandingThens(p)`.
-   1. Otherwise, let `p.[[Following]]` be `x` and add `{ p, undefined, undefined }` to `x.[[OutstandingThens]]`.
-1. Otherwise, let `p.[[Value]]` be `x` and call `ProcessOutstandingThens(p)`.
+   1. Otherwise, if `x.[[Value]]` is set, call `SetValue(p, x.[[Value]])`.
+   1. Otherwise, if `x.[[Reason]]` is set, call `SetReason(p, x.[[Reason]])`.
+   1. Otherwise,
+      1. Let `p.[[Following]]` be `x`.
+      1. Add `{ p, undefined, undefined }` to `x.[[OutstandingThens]]`.
+1. Otherwise, call `SetValue(p, x)`.
 
 ### Abstract Operation `Reject(p, r)`
 
 1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, terminate these steps.
-1. Let `p.[[Reason]]` be `r`. and call `ProcessOutstandingThens(p)`.
+1. Call `SetReason(p, r)`.
 
 ### Abstract Operation `Then(p, onFulfilled, onRejected)`
 
 1. If `p.[[Following]]` is set,
-   1. Return `Then(p.[[Following]], onFulfilled, onRejected)`. (Note that this could recurse, if `p.[[Following]].[[Following]]` is set.)
-1. Otherwise, let `q` be a new promise.
-1. If `p.[[Value]]` or `p.[[Reason]]` is set,
-   1. Call `UpdateFromValueOrReason(q, p, onFulfilled, onRejected)`.
-1. Otherwise, add `{ q, onFulfilled, onRejected }` to `p.[[OutstandingThens]]`.
-1. Return `q`.
+   1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
+1. Otherwise,
+   1. Let `q` be a new promise.
+   1. If `p.[[Value]]` or `p.[[Reason]]` is set, call `UpdateFromValueOrReason(q, p, onFulfilled, onRejected)`.
+   1. Otherwise, add `{ q, onFulfilled, onRejected }` to `p.[[OutstandingThens]]`.
+   1. Return `q`.
 
 ### Abstract Operation `ProcessOutstandingThens(p)`
 
 1. For each tuple `{ derivedPromise, onFulfilled, onRejected }` in `p.[[OutstandingThens]]`,
    1. Call `UpdateFromValueOrReason(derivedPromise, p, onFulfilled, onRejected)`.
-1. Clear `p.[[OutstandingThens]]`. (Note: this is not strictly necessary, as preconditions prevent `p.[[OustandingThens]]` from ever being used again after this point.)
+1. Clear `p.[[OutstandingThens]]`.
+
+Note: step 2 is not strictly necessary, as preconditions prevent `p.[[OutstandingThens]]` from ever being used again after this point.
 
 ### Abstract Operation `UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected)`
 
 1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
 1. If `p.[[Value]]` is set,
    1. If `IsCallable(onFulfilled)`, call `CallHandler(toUpdate, onFulfilled, p.[[Value]])`.
-   1. Otherwise, let `toUpdate.[[Value]]` be `p.[[Value]]` and call `ProcessOutstandingThens(toUpdate)`.
+   1. Otherwise, call `SetValue(toUpdate, p.[[Value]])`.
 1. Otherwise, if `p.[[Reason]]` is set,
    1. If `IsCallable(onRejected)`, call `CallHandler(toUpdate, onRejected, p.[[Reason]])`.
-   1. Otherwise, let `toUpdate.[[Reason]]` be `p.[[Reason]]` and call `ProcessOutstandingThens(toUpdate)`.
+   1. Otherwise, call `SetReason(toUpdate, p.[[Reason]])`.
 
 ### Abstract Operation `CallHandler(returnedPromise, handler, argument)`
 
 Queue a microtask to do the following:
 
-1. Call `handler(argument)`.
+1. Let `v` be `handler(argument)`.
 1. If this call throws an exception `e`, do `Reject(returnedPromise, e)`.
-1. Otherwise, let `v` be its return value, and call `Resolve(returnedPromise, v)`.
+1. Otherwise, call `Resolve(returnedPromise, v)`.
+
+### Abstract Operation `SetValue(p, value)`
+
+1. Assert: neither `p.[[Value]]` nor `p.[[Reason]]` are set.
+1. Set `p.[[Value]]` to `value`.
+1. Unset `p.[[Following]]`. (Note: this is not strictly necessary, as all code paths check `p.[[Value]]` before using `p.[[Following]]`.)
+1. Call `ProcessOutstandingThens(p)`.
+
+### Abstract Operation `SetReason(p, reason)`
+
+1. Assert: neither `p.[[Value]]` nor `p.[[Reason]]` are set.
+1. Set `p.[[Reason]]` to `reason`.
+1. Unset `p.[[Following]]`.
+1. Call `ProcessOutstandingThens(p)`.
+
+Note: step 3 is not strictly necessary, as all code paths check `p.[[Reason]]` before using `p.[[Following]]`.
 
 ## Manifestation As Methods
 

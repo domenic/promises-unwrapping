@@ -27,18 +27,15 @@ function Resolve(p, x) {
         if (is_set(x._following)) {
             p._following = x._following;
         } else if (is_set(x._value)) {
-            p._value = x._value;
-            ProcessOutstandingThens(p);
+            SetValue(p, x._value);
         } else if (is_set(x._reason)) {
-            p._reason = x._reason;
-            ProcessOutstandingThens(p);
+            SetReason(p, x._reason);
         } else {
             p._following = x;
             x._outstandingThens.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
         }
     } else {
-        p._value = x;
-        ProcessOutstandingThens(p);
+        SetValue(p, x);
     }
 }
 
@@ -47,8 +44,7 @@ function Reject(p, r) {
         return;
     }
 
-    p._reason = r;
-    ProcessOutstandingThens(p);
+    SetReason(p, r);
 }
 
 function Then(p, onFulfilled, onRejected) {
@@ -81,15 +77,13 @@ function UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected) {
         if (IsCallable(onFulfilled)) {
             CallHandler(toUpdate, onFulfilled, p._value);
         } else {
-            toUpdate._value = p._value;
-            ProcessOutstandingThens(toUpdate);
+            SetValue(toUpdate, p._value);
         }
     } else if (is_set(p._reason)) {
         if (IsCallable(onRejected)) {
             CallHandler(toUpdate, onRejected, p._reason);
         } else {
-            toUpdate._reason = p._reason;
-            ProcessOutstandingThens(toUpdate);
+            SetReason(toUpdate, p._reason);
         }
     }
 }
@@ -108,6 +102,22 @@ function CallHandler(returnedPromise, handler, argument) {
             Resolve(returnedPromise, v);
         }
     });
+}
+
+function SetValue(p, value) {
+    assert(!is_set(p._value) && !is_set(p._reason));
+
+    p._value = value;
+    p._following = UNSET;
+    ProcessOutstandingThens(p);
+}
+
+function SetReason(p, reason) {
+    assert(!is_set(p._value) && !is_set(p._reason));
+
+    p._reason = reason;
+    p._following = UNSET;
+    ProcessOutstandingThens(p);
 }
 
 //////

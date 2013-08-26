@@ -70,7 +70,7 @@ function ProcessOutstandingThens(p) {
         UpdateFromValueOrReason(tuple.derivedPromise, p, tuple.onFulfilled, tuple.onRejected);
     });
 
-    // TODO: test claim that this is not necessary by commenting it out.
+    // As per the note in the spec, this is not necessary, as we can verify by commenting it out.
     p._outstandingThens = [];
 }
 

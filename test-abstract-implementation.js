@@ -124,7 +124,7 @@ function SetReason(p, reason) {
 // ES/environment functions
 
 function IsObject(x) {
-    return typeof x === "object" && x !== null;
+    return (typeof x === "object" && x !== null) || typeof x === "function";
 }
 
 function IsCallable(x) {

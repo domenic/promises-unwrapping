@@ -23,7 +23,10 @@ A promise `p` carries several internal properties:
 
 1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, terminate these steps.
 1. If `IsPromise(x)`,
-   1. If `x.[[Following]]` is set,
+   1. If `SameValue(p, x)`,
+      1. Let `selfResolutionError` be a newly-created `TypeError` object.
+      1. Call `SetReason(p, selfResolutionError)`.
+   1. Otherwise, if `x.[[Following]]` is set,
       1. Let `p.[[Following]]` be `x.[[Following]]`.
       1. Add `{ p, undefined, undefined }` to `x.[[Following]].[[OutstandingThens]]`.
    1. Otherwise, if `x.[[Value]]` is set, call `SetValue(p, x.[[Value]])`.

@@ -24,7 +24,10 @@ function Resolve(p, x) {
     }
 
     if (IsPromise(x)) {
-        if (is_set(x._following)) {
+        if (SameValue(p, x)) {
+            var selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
+            SetReason(p, selfResolutionError);
+        } else if (is_set(x._following)) {
             p._following = x._following;
             x._following._outstandingThens.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
         } else if (is_set(x._value)) {
@@ -177,6 +180,10 @@ function IsObject(x) {
 
 function IsCallable(x) {
     return typeof x === "function";
+}
+
+function SameValue(x, y) {
+    return Object.is(x, y);
 }
 
 function QueueAMicrotask(func) {

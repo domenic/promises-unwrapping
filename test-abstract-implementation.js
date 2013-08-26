@@ -34,6 +34,7 @@ function Resolve(p, x) {
             ProcessOutstandingThens(p);
         } else {
             p._following = x;
+            x._outstandingThens.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
         }
     } else {
         p._value = x;

@@ -28,7 +28,7 @@ A promise `p` carries several internal properties:
    1. If `x.[[Following]]` is set, let `p.[[Following]]` be `x.[[Following]]`.
    1. Otherwise, if `x.[[Value]]` is set, let `p.[[Value]]` be `x.[[Value]]` and call `ProcessOutstandingThens(p)`.
    1. Otherwise, if `x.[[Reason]]` is set, let `p.[[Reason]]` be `x.[[Reason]]` and call `ProcessOutstandingThens(p)`.
-   1. Otherwise, let `p.[[Following]]` be `x`.
+   1. Otherwise, let `p.[[Following]]` be `x` and add `{ p, undefined, undefined }` to `x.[[OutstandingThens]]`.
 1. Otherwise, let `p.[[Value]]` be `x` and call `ProcessOutstandingThens(p)`.
 
 ### Abstract Operation `Reject(p, r)`

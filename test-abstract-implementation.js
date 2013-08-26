@@ -26,6 +26,7 @@ function Resolve(p, x) {
     if (IsPromise(x)) {
         if (is_set(x._following)) {
             p._following = x._following;
+            x._following._outstandingThens.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
         } else if (is_set(x._value)) {
             SetValue(p, x._value);
         } else if (is_set(x._reason)) {
@@ -74,18 +75,65 @@ function UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected) {
     assert((is_set(p._value) && !is_set(p._reason)) || (is_set(p._reason) && !is_set(p._value)));
 
     if (is_set(p._value)) {
-        if (IsCallable(onFulfilled)) {
-            CallHandler(toUpdate, onFulfilled, p._value);
+        if (IsObject(p._value)) {
+            var then = UNSET;
+            try {
+                then = p._value.then;
+            } catch (e) {
+                UpdateFromReason(toUpdate, e, onRejected);
+            }
+
+            if (is_set(then)) {
+                if (typeof then === "function") {
+                    var coerced = CoerceThenable(p._value, then);
+                    coerced._outstandingThens.push({ derivedPromise: toUpdate, onFulfilled: onFulfilled, onRejected: onRejected });
+                } else {
+                    UpdateFromValue(toUpdate, p._value, onFulfilled);
+                }
+            }
         } else {
-            SetValue(toUpdate, p._value);
+            UpdateFromValue(toUpdate, p._value, onFulfilled);
         }
     } else if (is_set(p._reason)) {
-        if (IsCallable(onRejected)) {
-            CallHandler(toUpdate, onRejected, p._reason);
-        } else {
-            SetReason(toUpdate, p._reason);
-        }
+        UpdateFromReason(toUpdate, p._reason, onRejected);
     }
+}
+
+function UpdateFromValue(toUpdate, value, onFulfilled) {
+    if (IsCallable(onFulfilled)) {
+        CallHandler(toUpdate, onFulfilled, value);
+    } else {
+        SetValue(toUpdate, value);
+    }
+}
+
+function UpdateFromReason(toUpdate, reason, onRejected) {
+    if (IsCallable(onRejected)) {
+        CallHandler(toUpdate, onRejected, reason);
+    } else {
+        SetReason(toUpdate, reason);
+    }
+}
+
+function CoerceThenable(thenable, then) {
+    var p = new Promise();
+
+    QueueAMicrotask(function () {
+        function resolve(x) {
+            Resolve(p, x);
+        }
+        function reject(r) {
+            Reject(p, r);
+        }
+
+        try {
+            then.call(thenable, resolve, reject);
+        } catch (e) {
+            Reject(p, e);
+        }
+    });
+
+    return p;
 }
 
 function CallHandler(returnedPromise, handler, argument) {

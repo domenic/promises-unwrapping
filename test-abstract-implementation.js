@@ -11,7 +11,7 @@ function Promise() {
     this._following = UNSET;
     this._value = UNSET;
     this._reason = UNSET;
-    this._outstandingThens = [];
+    this._derived = [];
 }
 
 function IsPromise(x) {
@@ -29,14 +29,14 @@ function Resolve(p, x) {
             SetReason(p, selfResolutionError);
         } else if (is_set(x._following)) {
             p._following = x._following;
-            x._following._outstandingThens.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
+            x._following._derived.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
         } else if (is_set(x._value)) {
             SetValue(p, x._value);
         } else if (is_set(x._reason)) {
             SetReason(p, x._reason);
         } else {
             p._following = x;
-            x._outstandingThens.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
+            x._derived.push({ derivedPromise: p, onFulfilled: undefined, onRejected: undefined });
         }
     } else {
         SetValue(p, x);
@@ -56,10 +56,11 @@ function Then(p, onFulfilled, onRejected) {
         return Then(p._following, onFulfilled, onRejected);
     } else {
         var q = new Promise();
+        var derived = { derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected };
         if (is_set(p._value) || is_set(p._reason)) {
-            UpdateDerived(q, p, onFulfilled, onRejected);
+            UpdateDerived(derived, p);
         } else {
-            p._outstandingThens.push({ derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected });
+            p._derived.push(derived);
         }
         return q;
     }
@@ -68,55 +69,55 @@ function Then(p, onFulfilled, onRejected) {
 function PropagateToDerived(p) {
     assert((is_set(p._value) && !is_set(p._reason)) || (is_set(p._reason) && !is_set(p._value)));
 
-    p._outstandingThens.forEach(function (tuple) {
-        UpdateDerived(tuple.derivedPromise, p, tuple.onFulfilled, tuple.onRejected);
+    p._derived.forEach(function (derived) {
+        UpdateDerived(derived, p);
     });
 
     // As per the note in the spec, this is not necessary, as we can verify by commenting it out.
-    p._outstandingThens = [];
+    p._derived = [];
 }
 
-function UpdateDerived(toUpdate, p, onFulfilled, onRejected) {
-    assert((is_set(p._value) && !is_set(p._reason)) || (is_set(p._reason) && !is_set(p._value)));
+function UpdateDerived(derived, originator) {
+    assert((is_set(originator._value) && !is_set(originator._reason)) || (is_set(originator._reason) && !is_set(originator._value)));
 
-    if (is_set(p._value)) {
-        if (IsObject(p._value)) {
+    if (is_set(originator._value)) {
+        if (IsObject(originator._value)) {
             var then = UNSET;
             try {
-                then = p._value.then;
+                then = originator._value.then;
             } catch (e) {
-                UpdateFromReason(toUpdate, e, onRejected);
+                UpdateDerivedFromReason(derived, e);
             }
 
             if (is_set(then)) {
                 if (typeof then === "function") {
-                    var coerced = CoerceThenable(p._value, then);
-                    coerced._outstandingThens.push({ derivedPromise: toUpdate, onFulfilled: onFulfilled, onRejected: onRejected });
+                    var coerced = CoerceThenable(originator._value, then);
+                    coerced._derived.push(derived);
                 } else {
-                    UpdateFromValue(toUpdate, p._value, onFulfilled);
+                    UpdateDerivedFromValue(derived, originator._value);
                 }
             }
         } else {
-            UpdateFromValue(toUpdate, p._value, onFulfilled);
+            UpdateDerivedFromValue(derived, originator._value);
         }
-    } else if (is_set(p._reason)) {
-        UpdateFromReason(toUpdate, p._reason, onRejected);
+    } else if (is_set(originator._reason)) {
+        UpdateDerivedFromReason(derived, originator._reason);
     }
 }
 
-function UpdateFromValue(toUpdate, value, onFulfilled) {
-    if (IsCallable(onFulfilled)) {
-        CallHandler(toUpdate, onFulfilled, value);
+function UpdateDerivedFromValue(derived, value) {
+    if (IsCallable(derived.onFulfilled)) {
+        CallHandler(derived.derivedPromise, derived.onFulfilled, value);
     } else {
-        SetValue(toUpdate, value);
+        SetValue(derived.derivedPromise, value);
     }
 }
 
-function UpdateFromReason(toUpdate, reason, onRejected) {
-    if (IsCallable(onRejected)) {
-        CallHandler(toUpdate, onRejected, reason);
+function UpdateDerivedFromReason(derived, reason) {
+    if (IsCallable(derived.onRejected)) {
+        CallHandler(derived.derivedPromise, derived.onRejected, reason);
     } else {
-        SetReason(toUpdate, reason);
+        SetReason(derived.derivedPromise, reason);
     }
 }
 
@@ -141,18 +142,18 @@ function CoerceThenable(thenable, then) {
     return p;
 }
 
-function CallHandler(returnedPromise, handler, argument) {
+function CallHandler(derivedPromise, handler, argument) {
     QueueAMicrotask(function () {
         var v = UNSET;
 
         try {
             v = handler(argument);
         } catch (e) {
-            Reject(returnedPromise, e);
+            Reject(derivedPromise, e);
         }
 
         if (is_set(v)) {
-            Resolve(returnedPromise, v);
+            Resolve(derivedPromise, v);
         }
     });
 }

@@ -4,13 +4,23 @@
 
 ### Promise Object Internal Data Properties
 
-A promise `p` carries several internal data properties:
+A promise carries several internal data properties:
 
-- `p.[[IsPromise]]`: all promises are branded with this property, and no other objects are. Uninitialized promises have it set to `undefined`, whereas initialized ones have it set to `true`.
-- `p.[[Following]]`: either unset, or a promise that `p` is following.
-- `p.[[Value]]`: either unset, or promise's direct fulfillment value (derived by resolving it with a non-thenable).
-- `p.[[Reason]]`: either unset, or a promise's direct rejection reason (derived by rejecting it).
-- `p.[[OutstandingThens]]`: a list, initially empty, of `{ promise, onFulfilled, onRejected }` tuples that need to be processed once one of the above three properties is set.
+- `[[IsPromise]]`: all promises are branded with this property, and no other objects are. Uninitialized promises have it set to `undefined`, whereas initialized ones have it set to `true`.
+- `[[Following]]`: either unset, or a promise that `p` is following.
+- `[[Value]]`: either unset, or promise's direct fulfillment value (derived by resolving it with a non-thenable).
+- `[[Reason]]`: either unset, or a promise's direct rejection reason (derived by rejecting it).
+- `[[Derived]]`: a list, initially empty, of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` are set.
+
+### The Derived Promise Transform Specification Type
+
+The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's `[[Derived]]` internal data property until the promise's `[[Value]]` or `[[Reason]]` are set, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
+
+Derived promise transforms are Records composed of three named fields:
+
+- `[[DerivedPromise]]`: the derived promise in need of updating.
+- `[[OnFulfilled]]`: the fulfillment handler to be used as a transformation, if the originating promise becomes fulfilled.
+- `[[OnRejected]]`: the rejection handler to be used as a transformation, if the originating promise becomes rejected.
 
 ### `IsPromise(x)`
 
@@ -30,12 +40,12 @@ The operator `Resolve` resolves a promise with a value.
       1. Call `SetReason(p, selfResolutionError)`.
    1. Otherwise, if `x.[[Following]]` is set,
       1. Let `p.[[Following]]` be `x.[[Following]]`.
-      1. Add `{ p, undefined, undefined }` to `x.[[Following]].[[OutstandingThens]]`.
+      1. Add `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` to `x.[[Following]].[[Derived]]`.
    1. Otherwise, if `x.[[Value]]` is set, call `SetValue(p, x.[[Value]])`.
    1. Otherwise, if `x.[[Reason]]` is set, call `SetReason(p, x.[[Reason]])`.
    1. Otherwise,
       1. Let `p.[[Following]]` be `x`.
-      1. Add `{ p, undefined, undefined }` to `x.[[OutstandingThens]]`.
+      1. Add `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` to `x.[[Derived]]`.
 1. Otherwise, call `SetValue(p, x)`.
 
 ### `Reject(p, r)`
@@ -53,8 +63,9 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
    1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
 1. Otherwise,
    1. Let `q` be a new promise.
-   1. If `p.[[Value]]` or `p.[[Reason]]` is set, call `UpdateDerived(q, p, onFulfilled, onRejected)`.
-   1. Otherwise, add `{ q, onFulfilled, onRejected }` to `p.[[OutstandingThens]]`.
+   1. Let `derived` be `{ [[DerivedPromise]]: q, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }`.
+   1. If `p.[[Value]]` or `p.[[Reason]]` is set, call `UpdateDerived(derived, p)`.
+   1. Otherwise, add `derived` to `p.[[Derived]]`.
    1. Return `q`.
 
 ### `PropagateToDerived(p)`
@@ -62,51 +73,51 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
 The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reason]]` to all of its derived promises.
 
 1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
-1. For each tuple `{ derivedPromise, onFulfilled, onRejected }` in `p.[[OutstandingThens]]`,
-   1. Call `UpdateDerived(derivedPromise, p, onFulfilled, onRejected)`.
-1. Clear `p.[[OutstandingThens]]`.
+1. For each derived promise transform `derived` in `p.[[Derived]]`,
+   1. Call `UpdateDerived(derived, p)`.
+1. Clear `p.[[Derived]]`.
 
-Note: step 2 is not strictly necessary, as preconditions prevent `p.[[OutstandingThens]]` from ever being used again after this point.
+Note: step 2 is not strictly necessary, as preconditions prevent `p.[[Derived]]` from ever being used again after this point.
 
-### `UpdateDerived(toUpdate, p, onFulfilled, onRejected)`
+### `UpdateDerived(derived, originator)`
 
-The operator `UpdateDerived` propagates a promise's state to a single derived promise.
+The operator `UpdateDerived` propagates a promise's state to a single derived promise using any relevant transforms.
 
-1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
-1. If `p.[[Value]]` is set,
-   1. If `IsObject(p.[[Value]])`,
-      1. Let `then` be `Get(p.[[Value]], "then")`.
-      1. If retrieving the property throws an exception `e`, call `UpdateFromReason(toUpdate, e, onRejected)`.
+1. Assert: exactly one of `originator.[[Value]]` or `originator.[[Reason]]` is set.
+1. If `originator.[[Value]]` is set,
+   1. If `IsObject(originator.[[Value]])`,
+      1. Let `then` be `Get(originator.[[Value]], "then")`.
+      1. If retrieving the property throws an exception `e`, call `UpdateDerivedFromReason(derived, e)`.
       1. Otherwise, if `Type(then)` is `Function`,
-         1. Let `coerced` be `CoerceThenable(p.[[Value]], then)`.
-         1. Add `{ toUpdate, onFulfilled, onRejected }` to `coerced.[[OutstandingThens]]`.
-      1. Otherwise, call `UpdateFromValue(toUpdate, p.[[Value]], onFulfilled)`.
-   1. Otherwise, call `UpdateFromValue(toUpdate, p.[[Value]], onFulfilled)`
-1. Otherwise, if `p.[[Reason]]` is set, call `UpdateFromReason(toUpdate, p.[[Reason]], onRejected)`.
+         1. Let `coerced` be `CoerceThenable(originator.[[Value]], then)`.
+         1. Add `derived` to `coerced.[[Derived]]`.
+      1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
+   1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`
+1. Otherwise, call `UpdateDerivedFromReason(derived, originator.[[Reason]])`.
 
-### `UpdateFromValue(toUpdate, value, onFulfilled)`
+### `UpdateDerivedFromValue(derived, value)`
 
-The operator `UpdateFromValue` propagates a value to a promise whose state is changing, with a possible transformation via the given fulfillment handler.
+The operator `UpdateDerivedFromValue` propagates a value to a derived promise, using the relevant `onFulfilled` transform if it is callable.
 
-1. If `IsCallable(onFulfilled)`, call `CallHandler(toUpdate, onFulfilled, value)`.
-1. Otherwise, call `SetValue(toUpdate, value)`.
+1. If `IsCallable(derived.[[OnFulfilled]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnFulfilled]], value)`.
+1. Otherwise, call `SetValue(derived.[[DerivedPromise]], value)`.
 
-### `UpdateFromReason(toUpdate, reason, onRejected)`
+### `UpdateFromReason(derived, reason)`
 
-The operator `UpdateFromReason` propagates a reason to a promise whose state is changing, with a possible transformation via the given rejection handler.
+The operator `UpdateFromReason` propagates a reason to a derived promise, using the relevant `onRejected` transform if it is callable.
 
-1. If `IsCallable(onRejected)`, call `CallHandler(toUpdate, onRejected, reason)`.
-1. Otherwise, call `SetReason(toUpdate, reason)`.
+1. If `IsCallable(derived.[[OnRejected]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnRejected]], reason)`.
+1. Otherwise, call `SetReason(derived.[[DerivedPromise]], reason)`.
 
-### `CallHandler(returnedPromise, handler, argument)`
+### `CallHandler(derivedPromise, handler, argument)`
 
-The operator `CallHandler` applies a transformation to a value or reason and uses it to update a promise whose state is changing.
+The operator `CallHandler` applies a transformation to a value or reason and uses it to update a derived promise.
 
 Queue a microtask to do the following:
 
 1. Let `v` be `handler(argument)`.
-1. If this call throws an exception `e`, do `Reject(returnedPromise, e)`.
-1. Otherwise, call `Resolve(returnedPromise, v)`.
+1. If this call throws an exception `e`, call `Reject(derivedPromise, e)`.
+1. Otherwise, call `Resolve(derivedPromise, v)`.
 
 ### `SetValue(p, value)`
 

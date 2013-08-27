@@ -57,7 +57,7 @@ function Then(p, onFulfilled, onRejected) {
     } else {
         var q = new Promise();
         if (is_set(p._value) || is_set(p._reason)) {
-            UpdateFromValueOrReason(q, p, onFulfilled, onRejected);
+            UpdateDerived(q, p, onFulfilled, onRejected);
         } else {
             p._outstandingThens.push({ derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected });
         }
@@ -69,14 +69,14 @@ function PropagateToDerived(p) {
     assert((is_set(p._value) && !is_set(p._reason)) || (is_set(p._reason) && !is_set(p._value)));
 
     p._outstandingThens.forEach(function (tuple) {
-        UpdateFromValueOrReason(tuple.derivedPromise, p, tuple.onFulfilled, tuple.onRejected);
+        UpdateDerived(tuple.derivedPromise, p, tuple.onFulfilled, tuple.onRejected);
     });
 
     // As per the note in the spec, this is not necessary, as we can verify by commenting it out.
     p._outstandingThens = [];
 }
 
-function UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected) {
+function UpdateDerived(toUpdate, p, onFulfilled, onRejected) {
     assert((is_set(p._value) && !is_set(p._reason)) || (is_set(p._reason) && !is_set(p._value)));
 
     if (is_set(p._value)) {

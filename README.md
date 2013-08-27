@@ -53,7 +53,7 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
    1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
 1. Otherwise,
    1. Let `q` be a new promise.
-   1. If `p.[[Value]]` or `p.[[Reason]]` is set, call `UpdateFromValueOrReason(q, p, onFulfilled, onRejected)`.
+   1. If `p.[[Value]]` or `p.[[Reason]]` is set, call `UpdateDerived(q, p, onFulfilled, onRejected)`.
    1. Otherwise, add `{ q, onFulfilled, onRejected }` to `p.[[OutstandingThens]]`.
    1. Return `q`.
 
@@ -63,14 +63,14 @@ The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reaso
 
 1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
 1. For each tuple `{ derivedPromise, onFulfilled, onRejected }` in `p.[[OutstandingThens]]`,
-   1. Call `UpdateFromValueOrReason(derivedPromise, p, onFulfilled, onRejected)`.
+   1. Call `UpdateDerived(derivedPromise, p, onFulfilled, onRejected)`.
 1. Clear `p.[[OutstandingThens]]`.
 
 Note: step 2 is not strictly necessary, as preconditions prevent `p.[[OutstandingThens]]` from ever being used again after this point.
 
-### `UpdateFromValueOrReason(toUpdate, p, onFulfilled, onRejected)`
+### `UpdateDerived(toUpdate, p, onFulfilled, onRejected)`
 
-The operator `UpdateFromValueOrReason` propagates a promise's state to a single derived promise.
+The operator `UpdateDerived` propagates a promise's state to a single derived promise.
 
 1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
 1. If `p.[[Value]]` is set,

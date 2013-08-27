@@ -65,7 +65,9 @@ function Then(p, onFulfilled, onRejected) {
     }
 }
 
-function ProcessOutstandingThens(p) {
+function PropagateToDerived(p) {
+    assert((is_set(p._value) && !is_set(p._reason)) || (is_set(p._reason) && !is_set(p._value)));
+
     p._outstandingThens.forEach(function (tuple) {
         UpdateFromValueOrReason(tuple.derivedPromise, p, tuple.onFulfilled, tuple.onRejected);
     });
@@ -160,7 +162,7 @@ function SetValue(p, value) {
 
     p._value = value;
     p._following = UNSET;
-    ProcessOutstandingThens(p);
+    PropagateToDerived(p);
 }
 
 function SetReason(p, reason) {
@@ -168,7 +170,7 @@ function SetReason(p, reason) {
 
     p._reason = reason;
     p._following = UNSET;
-    ProcessOutstandingThens(p);
+    PropagateToDerived(p);
 }
 
 //////

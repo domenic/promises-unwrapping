@@ -57,10 +57,11 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
    1. Otherwise, add `{ q, onFulfilled, onRejected }` to `p.[[OutstandingThens]]`.
    1. Return `q`.
 
-### `ProcessOutstandingThens(p)`
+### `PropagateToDerived(p)`
 
-The operator `ProcessOutstandingThens` propagates the changes a promise has undergone to all derived promises.
+The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reason]]` to all of its derived promises.
 
+1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
 1. For each tuple `{ derivedPromise, onFulfilled, onRejected }` in `p.[[OutstandingThens]]`,
    1. Call `UpdateFromValueOrReason(derivedPromise, p, onFulfilled, onRejected)`.
 1. Clear `p.[[OutstandingThens]]`.
@@ -114,7 +115,7 @@ The operator `SetValue` encapsulates the process of setting a promise's value an
 1. Assert: neither `p.[[Value]]` nor `p.[[Reason]]` are set.
 1. Set `p.[[Value]]` to `value`.
 1. Unset `p.[[Following]]`.
-1. Call `ProcessOutstandingThens(p)`.
+1. Call `PropagateToDerived(p)`.
 
 Note: step 3 is not strictly necessary, as all code paths check `p.[[Value]]` before using `p.[[Following]]`.
 
@@ -125,7 +126,7 @@ The operator `SetReason` encapsulates the process of setting a promise's reason 
 1. Assert: neither `p.[[Value]]` nor `p.[[Reason]]` are set.
 1. Set `p.[[Reason]]` to `reason`.
 1. Unset `p.[[Following]]`.
-1. Call `ProcessOutstandingThens(p)`.
+1. Call `PropagateToDerived(p)`.
 
 Note: step 3 is not strictly necessary, as all code paths check `p.[[Reason]]` before using `p.[[Following]]`.
 

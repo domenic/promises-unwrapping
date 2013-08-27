@@ -190,11 +190,9 @@ function SameValue(x, y) {
 }
 
 function QueueAMicrotask(func) {
-    // Whatever, same semantics. I don't want to break out the MutationObservers just for this. Don't test me though!
-    // If you start asking stupid questions, I'll totally do it! I'll break out the MutationObservers!!
-    setTimeout(function () {
+    process.nextTick(function () {
         func();
-    }, 0);
+    });
 }
 
 //////

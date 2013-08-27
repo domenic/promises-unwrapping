@@ -1,5 +1,9 @@
 # Promise Objects
 
+This repository is meant to fully flesh out a subset of the "AP2" promise consensus developed over the last month on es-discuss. In particular, it provides the subset the DOM needs as soon as possible, omitting `flatMap` and `accept` for now but building a conceptual foundation that would allow them to be added at a later date.
+
+It is meant to succeed the current [DOM Promises](http://dom.spec.whatwg.org/#promises) spec, and fixes a number of bugs in that spec while also changing some of the exposed APIs and behavior to make it more forward-compatible with the full AP2 consensus.
+
 ## Overview of Promise Objects and Definitions of Abstract Operations
 
 ### Promise Object Internal Data Properties

@@ -85,14 +85,15 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
 
 1. Assert: exactly one of `originator.[[Value]]` or `originator.[[Reason]]` is set.
 1. If `originator.[[Value]]` is set,
-   1. If `IsObject(originator.[[Value]])`,
+   1. If `IsObject(originator.[[Value]])`, queue a microtask to run the following:
       1. Let `then` be `Get(originator.[[Value]], "then")`.
       1. If retrieving the property throws an exception `e`, call `UpdateDerivedFromReason(derived, e)`.
       1. Otherwise, if `Type(then)` is `Function`,
          1. Let `coerced` be `CoerceThenable(originator.[[Value]], then)`.
-         1. Add `derived` to `coerced.[[Derived]]`.
+         1. If `coerced.[[Value]]` or `coerced.[[Reason]]` is set, call `UpdateDerived(derived, coerced)`.
+         1. Otherwise, add `derived` to `coerced.[[Derived]]`.
       1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
-   1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`
+   1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
 1. Otherwise, call `UpdateDerivedFromReason(derived, originator.[[Reason]])`.
 
 ### `UpdateDerivedFromValue(derived, value)`
@@ -147,12 +148,12 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 
 1. Assert: `IsObject(thenable)`.
 1. Assert: `IsCallable(then)`.
+1. Assert: the execution context stack is empty.
 1. Let `p` be a new promise.
-1. Queue a microtask to the do the following:
-   1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
-   1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
-   1. Call `then.[[Call]](thenable, [resolve, reject])`.
-   1. If calling the function throws an exception `e`, call `Reject(p, e)`.
+1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
+1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
+1. Call `then.[[Call]](thenable, [resolve, reject])`.
+1. If calling the function throws an exception `e`, call `Reject(p, e)`.
 
 ## The `Promise` constructor
 

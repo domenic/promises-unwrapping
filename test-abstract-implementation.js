@@ -82,21 +82,27 @@ function UpdateDerived(derived, originator) {
 
     if (is_set(originator._value)) {
         if (IsObject(originator._value)) {
-            var then = UNSET;
-            try {
-                then = originator._value.then;
-            } catch (e) {
-                UpdateDerivedFromReason(derived, e);
-            }
-
-            if (is_set(then)) {
-                if (typeof then === "function") {
-                    var coerced = CoerceThenable(originator._value, then);
-                    coerced._derived.push(derived);
-                } else {
-                    UpdateDerivedFromValue(derived, originator._value);
+            QueueAMicrotask(function () {
+                var then = UNSET;
+                try {
+                    then = originator._value.then;
+                } catch (e) {
+                    UpdateDerivedFromReason(derived, e);
                 }
-            }
+
+                if (is_set(then)) {
+                    if (typeof then === "function") {
+                        var coerced = CoerceThenable(originator._value, then);
+                        if (is_set(coerced._value) || is_set(coerced._reason)) {
+                            UpdateDerived(derived, coerced);
+                        } else {
+                            coerced._derived.push(derived);
+                        }
+                    } else {
+                        UpdateDerivedFromValue(derived, originator._value);
+                    }
+                }
+            });
         } else {
             UpdateDerivedFromValue(derived, originator._value);
         }
@@ -122,22 +128,22 @@ function UpdateDerivedFromReason(derived, reason) {
 }
 
 function CoerceThenable(thenable, then) {
+    // Missing assert: execution context stack is empty. Very hard to test; maybe could use `(new Error()).stack`?
+
     var p = new Promise();
 
-    QueueAMicrotask(function () {
-        function resolve(x) {
-            Resolve(p, x);
-        }
-        function reject(r) {
-            Reject(p, r);
-        }
+    function resolve(x) {
+        Resolve(p, x);
+    }
+    function reject(r) {
+        Reject(p, r);
+    }
 
-        try {
-            then.call(thenable, resolve, reject);
-        } catch (e) {
-            Reject(p, e);
-        }
-    });
+    try {
+        then.call(thenable, resolve, reject);
+    } catch (e) {
+        Reject(p, e);
+    }
 
     return p;
 }

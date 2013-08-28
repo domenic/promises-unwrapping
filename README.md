@@ -183,7 +183,7 @@ When `Promise` is called with the argument `arg`, the following steps are taken.
       1. If calling the function throws an exception `e`, call `Reject(O, e)`.
    1. Return `O`.
 1. Otherwise,
-   1. If `IsPromise(arg), return `arg`.
+   1. If `IsPromise(arg)`, return `arg`.
    1. Otherwise,
       1. Let `p` be a newly-created promise.
       1. Call `Resolve(p, arg)`.

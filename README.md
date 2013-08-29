@@ -211,6 +211,16 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Call `Reject(p, r)`.
 1. Return `p`.
 
+### `Promise.from(x)`
+
+`Promise.from` coerces its argument to a promise, or returns the argument if it is already a promise.
+
+1. If `IsPromise(x)`, return `x`.
+1. Otherwise,
+   1. Let `p` be a newly-created promise.
+   1. Call `Resolve(p, x)`.
+   1. Return `p`.
+
 ## Properties of the `Promise` Prototype Object
 
 The `Promise` prototype object is itself an ordinary object. It is not a `Promise` instance and does not have a `[[IsPromise]]` internal data property.

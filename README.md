@@ -161,44 +161,29 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 
 ## The `Promise` constructor
 
-The `Promise` constructor is the `%Promise%` intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it performs a coercion, leaving promises unchanged but coercing thenables to real promises and non-thenable values to promises fulfilled with that value. However, if the `this` value passed in the call is an `Object` with an uninitialized `[[IsPromise]]` internal data property, it initializes the `this` value using the argument value. This permits `Promise` to be used both to perform coercion and to perform constructor instance initialization.
+The `Promise` constructor is the `%Promise%` intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its `this` value with the internal state necessary to support the `Promise.prototype` internal methods.
 
 The `Promise` constructor is designed to be subclassable. It may be used as the value of an `extends` clause of a class declaration. Subclass constructors that intended to inherit the specified `Promise` behavior must include a `super` call to the `Promise` constructor to initialize the `[[IsPromise]]` state of subclass instances.
 
-### `Promise(arg)`
+### `Promise(resolver)`
 
-When `Promise` is called with the argument `arg`, the following steps are taken. If being called to initialize an uninitialized promise object created by `Promise[@@create]`, it uses the signature `Promise(resolver)`, where `resolver` is given the two arguments `resolve` and `reject` which will perform their eponymous operations on the promise. If called as a normal function, it will coerce its argument to a promise.
+When `Promise` is called with the argument `resolver`, the following steps are taken. If being called to initialize an uninitialized promise object created by `Promise[@@create]`, `resolver` is assumed to be a function and is given the two arguments `resolve` and `reject` which will perform their eponymous operations on the promise.
 
-1. Let `func` be this `Promise` function object.
-1. Let `O` be the `this` value.
-1. If `Type(O)` is `Object` and `O` has a `[[IsPromise]]` internal data property and the value of `[[IsPromise]]` is `undefined`,
-   1. Set `O.[[IsPromise]]` to `true`.
-   1. If `Type(arg)` is not `Function`,
-      1. Let `resolverMustBeFunctionError` be a newly-created `TypeError`.
-      1. Call `SetReason(O, resolveMustBeFunctionError)`.
-   1. Otherwise,
-      1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(O, x)`.
-      1. Let `reject(r)` be an ECMAScript function that calls `Reject(O, r)`.
-      1. Call `arg.[[Call]](undefined, [resolve, reject])`.
-      1. If calling the function throws an exception `e`, call `Reject(O, e)`.
-   1. Return `O`.
-1. Otherwise,
-   1. If `IsPromise(arg)`, return `arg`.
-   1. Otherwise,
-      1. Let `p` be a newly-created promise.
-      1. Call `Resolve(p, arg)`.
-      1. Return `p`.
-
-1. If `Type(O)` is not `Object` or `Type(O)` is `Object` and `O.[[IsPromise]]` is unset,
-   1. If `Type(x)` is `Object` and `x.[[IsPromise]]` is set, return `x`.
-   1. Otherwise,
-      1. Let `O` be the result of calling `PromiseAlloc(func)`.
-      1. `ReturnIfAbrupt(O)`.
-1. Return `PromiseInitialize(O, x)`.
+1. Let `promise` be the `this` value.
+1. If `Type(promise)` is not `Object`, throw a `TypeError` exception.
+1. If `promise.[[IsPromise]]` is unset, then throw a `TypeError` exception.
+1. If `promise.[[IsPromise]]` is not `undefined`, then throw a `TypeError` exception.
+1. If `Type(resolver)` is not `Function`, then throw a `TypeError` exception.
+1. Set `promise.[[IsPromise]]` to `true`.
+1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
+1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
+1. Call `resolver.[[Call]](undefined, [resolve, reject])`.
+1. If calling the function throws an exception `e`, call `Reject(promise, e)`.
+1. Return `promise`.
 
 ### `new Promise(...argumentsList)`
 
-`Promise` called as part of a `new` expression with argument list `argumentList` simply delegates to the usual ECMAScript spec mechanisms for creating new objects, triggering the initialization subsequence of the above `Promise(arg)` procedure.
+`Promise` called as part of a `new` expression with argument list `argumentList` simply delegates to the usual ECMAScript spec mechanisms for creating new objects, triggering the initialization subsequence of the above `Promise(resolver)` procedure.
 
 1. Return `OrdinaryConstructor(Promise, argumentsList)`.
 

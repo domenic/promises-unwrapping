@@ -118,11 +118,10 @@ The operator `UpdateDerivedFromReason` propagates a reason to a derived promise,
 
 The operator `CallHandler` applies a transformation to a value or reason and uses it to update a derived promise.
 
-Queue a microtask to do the following:
-
-1. Let `v` be `handler(argument)`.
-1. If this call throws an exception `e`, call `Reject(derivedPromise, e)`.
-1. Otherwise, call `Resolve(derivedPromise, v)`.
+1. Queue a microtask to do the following:
+   1. Let `v` be `handler.[[Call]](undefined, (argument))`.
+   1. If calling the function throws an exception `e`, call `Reject(derivedPromise, e)`.
+   1. Otherwise, call `Resolve(derivedPromise, v)`.
 
 ### `SetValue(p, value)`
 

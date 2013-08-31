@@ -211,9 +211,9 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Call `Reject(p, r)`.
 1. Return `p`.
 
-### `Promise.from(x)`
+### `Promise.cast(x)`
 
-`Promise.from` coerces its argument to a promise, or returns the argument if it is already a promise.
+`Promise.cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
 1. If `IsPromise(x)`, return `x`.
 1. Otherwise,

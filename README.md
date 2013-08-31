@@ -107,9 +107,9 @@ The operator `UpdateDerivedFromValue` propagates a value to a derived promise, u
 1. If `IsCallable(derived.[[OnFulfilled]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnFulfilled]], value)`.
 1. Otherwise, call `SetValue(derived.[[DerivedPromise]], value)`.
 
-### `UpdateFromReason(derived, reason)`
+### `UpdateDerivedFromReason(derived, reason)`
 
-The operator `UpdateFromReason` propagates a reason to a derived promise, using the relevant `onRejected` transform if it is callable.
+The operator `UpdateDerivedFromReason` propagates a reason to a derived promise, using the relevant `onRejected` transform if it is callable.
 
 1. If `IsCallable(derived.[[OnRejected]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnRejected]], reason)`.
 1. Otherwise, call `SetReason(derived.[[DerivedPromise]], reason)`.

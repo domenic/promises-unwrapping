@@ -156,7 +156,7 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. Let `p` be a new promise.
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
-1. Call `then.[[Call]](thenable, [resolve, reject])`.
+1. Call `then.[[Call]](thenable, (resolve, reject))`.
 1. If calling the function throws an exception `e`, call `Reject(p, e)`.
 
 ## The `Promise` constructor
@@ -177,7 +177,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Set `promise.[[IsPromise]]` to `true`.
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
-1. Call `resolver.[[Call]](undefined, [resolve, reject])`.
+1. Call `resolver.[[Call]](undefined, (resolve, reject))`.
 1. If calling the function throws an exception `e`, call `Reject(promise, e)`.
 1. Return `promise`.
 

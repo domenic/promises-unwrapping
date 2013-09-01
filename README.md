@@ -157,6 +157,7 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
 1. Call `then.[[Call]](thenable, (resolve, reject))`.
 1. If calling the function throws an exception `e`, call `Reject(p, e)`.
+1. Return `p`.
 
 ## The `Promise` constructor
 

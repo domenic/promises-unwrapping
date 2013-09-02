@@ -6,6 +6,8 @@ var UNSET = { "unset": "UNSET" };
 // NOTE!!! This is not normal JavaScript; it's used as a sanity check for the spec. JavaScript promises do not work this
 // way, e.g. they have methods instead of these capitalized functions! Do not use this for anything real!
 
+var ThenableCoercions = new WeakMap();
+
 function Promise() {
     this._isPromise = true;
     this._following = UNSET;
@@ -130,22 +132,28 @@ function UpdateDerivedFromReason(derived, reason) {
 function CoerceThenable(thenable, then) {
     // Missing assert: execution context stack is empty. Very hard to test; maybe could use `(new Error()).stack`?
 
-    var p = new Promise();
+    if (ThenableCoercions.has(thenable)) {
+        return ThenableCoercions.get(thenable);
+    } else {
+        var p = new Promise();
 
-    function resolve(x) {
-        Resolve(p, x);
-    }
-    function reject(r) {
-        Reject(p, r);
-    }
+        var resolve = function (x) {
+            Resolve(p, x);
+        }
+        var reject = function (r) {
+            Reject(p, r);
+        }
 
-    try {
-        then.call(thenable, resolve, reject);
-    } catch (e) {
-        Reject(p, e);
-    }
+        try {
+            then.call(thenable, resolve, reject);
+        } catch (e) {
+            Reject(p, e);
+        }
 
-    return p;
+        ThenableCoercions.set(thenable, p);
+
+        return p;
+    }
 }
 
 function CallHandler(derivedPromise, handler, argument) {
@@ -214,6 +222,15 @@ function is_set(internalPropertyValue) {
 function addThenMethod(specificationPromise) {
     specificationPromise.then = function (onFulfilled, onRejected) {
         return addThenMethod(Then(specificationPromise, onFulfilled, onRejected));
+    };
+
+    // A `done` method is useful for writing tests.
+    specificationPromise.done = function (onFulfilled, onRejected) {
+        return this.then(onFulfilled, onRejected).then(undefined, function (reason) {
+            process.nextTick(function () {
+                throw reason;
+            });
+        });
     };
     return specificationPromise;
 }

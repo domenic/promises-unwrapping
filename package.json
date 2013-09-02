@@ -4,7 +4,7 @@
   "description": "Some proto-spec work on exact promise semantics for the DOM and ES.",
   "main": "test-abstract-implementation.js",
   "scripts": {
-    "test": "promises-aplus-tests test-abstract-implementation.js"
+    "test": "mocha --harmony run-tests.js"
   },
   "repository": {
     "type": "git",
@@ -22,6 +22,7 @@
     "url": "https://github.com/domenic/promises-unwrapping/issues"
   },
   "dependencies": {
-    "promises-aplus-tests": "git://github.com/promises-aplus/promises-tests#spec-1.1"
+    "promises-aplus-tests": "git://github.com/promises-aplus/promises-tests#spec-1.1",
+    "mocha": "~1.12.1"
   }
 }

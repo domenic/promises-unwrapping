@@ -16,6 +16,14 @@ A promise carries several internal data properties:
 - `[[Reason]]`: either unset, or a promise's direct rejection reason (derived by rejecting it).
 - `[[Derived]]`: a list, initially empty, of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` are set.
 
+### The `ThenableCoercions` Weak Map
+
+To successfully and consistently assimilate thenable objects into real promises, an implementation must maintain a weak map of thenables to promises. Notably, both the keys and values must be weakly stored. Since this weak map is not directly exposed, it does not need to be a true ECMAScript weak map, with the accompanying prototype and such. However, we refer to it using ECMAScript notation in this spec, i.e.:
+
+- `ThenableCoercions.has(thenable)`
+- `ThenableCoercions.get(thenable)`
+- `ThenableCoercions.set(thenable, promise)`
+
 ### The Derived Promise Transform Specification Type
 
 The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's `[[Derived]]` internal data property until the promise's `[[Value]]` or `[[Reason]]` are set, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
@@ -96,7 +104,6 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
          1. Let `coerced` be `CoerceThenable(originator.[[Value]], then)`.
          1. If `coerced.[[Value]]` or `coerced.[[Reason]]` is set, call `UpdateDerived(derived, coerced)`.
          1. Otherwise, add `derived` to `coerced.[[Derived]]`.
-      1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
    1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
 1. Otherwise, call `UpdateDerivedFromReason(derived, originator.[[Reason]])`.
 
@@ -147,17 +154,20 @@ Note: step 3 is not strictly necessary, as all code paths check `p.[[Reason]]` b
 
 ### `CoerceThenable(thenable, then)`
 
-The operator `CoerceThenable` takes a "thenable" object whose `then` method has been extracted and creates a promise from it.
+The operator `CoerceThenable` takes a "thenable" object whose `then` method has been extracted and creates a promise from it. It memoizes its results so as to avoid getting inconsistent answers in the face of ill-behaved thenables.
 
 1. Assert: `IsObject(thenable)`.
 1. Assert: `IsCallable(then)`.
 1. Assert: the execution context stack is empty.
-1. Let `p` be a new promise.
-1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
-1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
-1. Call `then.[[Call]](thenable, (resolve, reject))`.
-1. If calling the function throws an exception `e`, call `Reject(p, e)`.
-1. Return `p`.
+1. If `ThenableCoercions.has(thenable)`, return `ThenableCoercions.get(thenable)`.
+1. Otherwise,
+   1. Let `p` be a new promise.
+   1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
+   1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
+   1. Call `then.[[Call]](thenable, (resolve, reject))`.
+   1. If calling the function throws an exception `e`, call `Reject(p, e)`.
+   1. Call `ThenableCoercions.set(thenable, p)`.
+   1. Return `p`.
 
 ## The `Promise` constructor
 

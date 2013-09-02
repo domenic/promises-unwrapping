@@ -76,8 +76,7 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
 1. Otherwise,
    1. Let `q` be a new promise.
    1. Let `derived` be `{ [[DerivedPromise]]: q, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }`.
-   1. If `p.[[Value]]` or `p.[[Reason]]` is set, call `UpdateDerived(derived, p)`.
-   1. Otherwise, add `derived` to `p.[[Derived]]`.
+   1. Call `UpdateDerivedFromPromise(derived, p)`.
    1. Return `q`.
 
 ### `PropagateToDerived(p)`
@@ -98,12 +97,16 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
 1. Assert: exactly one of `originator.[[Value]]` or `originator.[[Reason]]` is set.
 1. If `originator.[[Value]]` is set,
    1. If `IsObject(originator.[[Value]])`, queue a microtask to run the following:
-      1. Let `then` be `Get(originator.[[Value]], "then")`.
-      1. If retrieving the property throws an exception `e`, call `UpdateDerivedFromReason(derived, e)`.
-      1. Otherwise, if `Type(then)` is `Function`,
-         1. Let `coerced` be `CoerceThenable(originator.[[Value]], then)`.
-         1. If `coerced.[[Value]]` or `coerced.[[Reason]]` is set, call `UpdateDerived(derived, coerced)`.
-         1. Otherwise, add `derived` to `coerced.[[Derived]]`.
+      1. If `ThenableCoercions.has(originator.[[Value]])`,
+         1. Let `coercedAlready` be `ThenableCoercions.get(originator.[[Value]])`.
+         1. Call `UpdateDerivedFromPromise(derived, coercedAlready)`.
+      1. Otherwise,
+         1. Let `then` be `Get(originator.[[Value]], "then")`.
+         1. If retrieving the property throws an exception `e`, call `UpdateDerivedFromReason(derived, e)`.
+         1. Otherwise, if `Type(then)` is `Function`,
+             1. Let `coerced` be `CoerceThenable(originator.[[Value]], then)`.
+             1. Call `UpdateDerivedFromPromise(derived, coerced)`.
+         1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
    1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
 1. Otherwise, call `UpdateDerivedFromReason(derived, originator.[[Reason]])`.
 
@@ -120,6 +123,13 @@ The operator `UpdateDerivedFromReason` propagates a reason to a derived promise,
 
 1. If `IsCallable(derived.[[OnRejected]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnRejected]], reason)`.
 1. Otherwise, call `SetReason(derived.[[DerivedPromise]], reason)`.
+
+### `UpdateDerivedFromPromise(derived, promise)`
+
+The operator `UpdateDerivedFromPromise` propagates one promise's state to the derived promise, using the relevant transform if it is callable.
+
+1. If `promise.[[Value]]` or `promise.[[Reason]]` is set, call `UpdateDerived(derived, promise)`.
+1. Otherwise, add `derived` to `promise.[[Derived]]`.
 
 ### `CallHandler(derivedPromise, handler, argument)`
 
@@ -154,20 +164,18 @@ Note: step 3 is not strictly necessary, as all code paths check `p.[[Reason]]` b
 
 ### `CoerceThenable(thenable, then)`
 
-The operator `CoerceThenable` takes a "thenable" object whose `then` method has been extracted and creates a promise from it. It memoizes its results so as to avoid getting inconsistent answers in the face of ill-behaved thenables.
+The operator `CoerceThenable` takes a "thenable" object whose `then` method has been extracted and creates a promise from it. It memoizes its results so as to avoid getting inconsistent answers in the face of ill-behaved thenables; the memoized results are later checked by `UpdateDerived`.
 
 1. Assert: `IsObject(thenable)`.
 1. Assert: `IsCallable(then)`.
 1. Assert: the execution context stack is empty.
-1. If `ThenableCoercions.has(thenable)`, return `ThenableCoercions.get(thenable)`.
-1. Otherwise,
-   1. Let `p` be a new promise.
-   1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
-   1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
-   1. Call `then.[[Call]](thenable, (resolve, reject))`.
-   1. If calling the function throws an exception `e`, call `Reject(p, e)`.
-   1. Call `ThenableCoercions.set(thenable, p)`.
-   1. Return `p`.
+1. Let `p` be a new promise.
+1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
+1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
+1. Call `then.[[Call]](thenable, (resolve, reject))`.
+1. If calling the function throws an exception `e`, call `Reject(p, e)`.
+1. Call `ThenableCoercions.set(thenable, p)`.
+1. Return `p`.
 
 ## The `Promise` constructor
 

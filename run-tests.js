@@ -6,13 +6,22 @@ var assert = require("assert");
 var sentinel = { sentinel: "SENTINEL" };
 
 function fulfilledThenable(value) {
-    return {
+    var thenable = {
         timesCalled: 0,
-        then: function (onFulfilled, onRejected) {
-            ++this.timesCalled;
-            onFulfilled(value);
-        }
+        timesGotten: 0
     };
+
+    Object.defineProperty(thenable, "then", {
+        get: function () {
+            ++thenable.timesGotten;
+            return function (onFulfilled, onRejected) {
+                ++this.timesCalled;
+                onFulfilled(value);
+            };
+        }
+    });
+
+    return thenable;
 }
 
 describe("Memoization of thenables", function () {
@@ -25,22 +34,26 @@ describe("Memoization of thenables", function () {
 
         setTimeout(function () {
             assert.strictEqual(thenable.timesCalled, 0);
+            assert.strictEqual(thenable.timesGotten, 0);
             var valuesGotten = 0;
 
             derived.done(function (value) {
                 assert.strictEqual(thenable.timesCalled, 1);
+                assert.strictEqual(thenable.timesGotten, 1);
                 assert.strictEqual(value, sentinel);
                 ++valuesGotten;
             });
 
             derived.done(function (value) {
                 assert.strictEqual(thenable.timesCalled, 1);
+                assert.strictEqual(thenable.timesGotten, 1);
                 assert.strictEqual(value, sentinel);
                 ++valuesGotten;
             });
 
             setTimeout(function () {
                 assert.strictEqual(thenable.timesCalled, 1);
+                assert.strictEqual(thenable.timesGotten, 1);
                 assert.strictEqual(valuesGotten, 2);
                 done();
             }, 50);
@@ -56,10 +69,12 @@ describe("Memoization of thenables", function () {
 
         setTimeout(function () {
             assert.strictEqual(thenable.timesCalled, 0);
+            assert.strictEqual(thenable.timesGotten, 0);
             var valuesGotten = 0;
 
             derived.done(function (value) {
                 assert.strictEqual(thenable.timesCalled, 1);
+                assert.strictEqual(thenable.timesGotten, 1);
                 assert.strictEqual(value, sentinel);
                 ++valuesGotten;
             });
@@ -67,12 +82,14 @@ describe("Memoization of thenables", function () {
             setTimeout(function () {
                 derived.done(function (value) {
                     assert.strictEqual(thenable.timesCalled, 1);
+                    assert.strictEqual(thenable.timesGotten, 1);
                     assert.strictEqual(value, sentinel);
                     ++valuesGotten;
                 });
 
                 setTimeout(function () {
                     assert.strictEqual(thenable.timesCalled, 1);
+                    assert.strictEqual(thenable.timesGotten, 1);
                     assert.strictEqual(valuesGotten, 2);
                     done();
                 }, 50);
@@ -93,12 +110,14 @@ describe("Memoization of thenables", function () {
         var valuesGotten = 0;
         derived1.done(function (value) {
             assert.strictEqual(thenable.timesCalled, 1);
+            assert.strictEqual(thenable.timesGotten, 1);
             assert.strictEqual(value, sentinel);
             ++valuesGotten;
         });
 
         derived2.done(function (value) {
             assert.strictEqual(thenable.timesCalled, 1);
+            assert.strictEqual(thenable.timesGotten, 1);
             assert.strictEqual(value, sentinel);
             ++valuesGotten;
         });

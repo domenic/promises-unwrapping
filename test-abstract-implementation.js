@@ -59,11 +59,7 @@ function Then(p, onFulfilled, onRejected) {
     } else {
         var q = new Promise();
         var derived = { derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected };
-        if (is_set(p._value) || is_set(p._reason)) {
-            UpdateDerived(derived, p);
-        } else {
-            p._derived.push(derived);
-        }
+        UpdateDerivedFromPromise(derived, p);
         return q;
     }
 }
@@ -85,23 +81,24 @@ function UpdateDerived(derived, originator) {
     if (is_set(originator._value)) {
         if (IsObject(originator._value)) {
             QueueAMicrotask(function () {
-                var then = UNSET;
-                try {
-                    then = originator._value.then;
-                } catch (e) {
-                    UpdateDerivedFromReason(derived, e);
-                }
+                if (ThenableCoercions.has(originator._value)) {
+                    var coercedAlready = ThenableCoercions.get(originator._value);
+                    UpdateDerivedFromPromise(derived, coercedAlready);
+                } else {
+                    var then = UNSET;
+                    try {
+                        then = originator._value.then;
+                    } catch (e) {
+                        UpdateDerivedFromReason(derived, e);
+                    }
 
-                if (is_set(then)) {
-                    if (typeof then === "function") {
-                        var coerced = CoerceThenable(originator._value, then);
-                        if (is_set(coerced._value) || is_set(coerced._reason)) {
-                            UpdateDerived(derived, coerced);
+                    if (is_set(then)) {
+                        if (typeof then === "function") {
+                            var coerced = CoerceThenable(originator._value, then);
+                            UpdateDerivedFromPromise(derived, coerced);
                         } else {
-                            coerced._derived.push(derived);
+                            UpdateDerivedFromValue(derived, originator._value);
                         }
-                    } else {
-                        UpdateDerivedFromValue(derived, originator._value);
                     }
                 }
             });
@@ -129,31 +126,35 @@ function UpdateDerivedFromReason(derived, reason) {
     }
 }
 
+function UpdateDerivedFromPromise(derived, promise) {
+    if (is_set(promise._value) || is_set(promise._reason)) {
+        UpdateDerived(derived, promise);
+    } else {
+        promise._derived.push(derived);
+    }
+}
+
 function CoerceThenable(thenable, then) {
     // Missing assert: execution context stack is empty. Very hard to test; maybe could use `(new Error()).stack`?
 
-    if (ThenableCoercions.has(thenable)) {
-        return ThenableCoercions.get(thenable);
-    } else {
-        var p = new Promise();
+    var p = new Promise();
 
-        var resolve = function (x) {
-            Resolve(p, x);
-        }
-        var reject = function (r) {
-            Reject(p, r);
-        }
-
-        try {
-            then.call(thenable, resolve, reject);
-        } catch (e) {
-            Reject(p, e);
-        }
-
-        ThenableCoercions.set(thenable, p);
-
-        return p;
+    var resolve = function (x) {
+        Resolve(p, x);
     }
+    var reject = function (r) {
+        Reject(p, r);
+    }
+
+    try {
+        then.call(thenable, resolve, reject);
+    } catch (e) {
+        Reject(p, e);
+    }
+
+    ThenableCoercions.set(thenable, p);
+
+    return p;
 }
 
 function CallHandler(derivedPromise, handler, argument) {

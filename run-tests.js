@@ -37,14 +37,14 @@ describe("Memoization of thenables", function () {
             assert.strictEqual(thenable.timesGotten, 0);
             var valuesGotten = 0;
 
-            derived.done(function (value) {
+            adapter.done(derived, function (value) {
                 assert.strictEqual(thenable.timesCalled, 1);
                 assert.strictEqual(thenable.timesGotten, 1);
                 assert.strictEqual(value, sentinel);
                 ++valuesGotten;
             });
 
-            derived.done(function (value) {
+            adapter.done(derived, function (value) {
                 assert.strictEqual(thenable.timesCalled, 1);
                 assert.strictEqual(thenable.timesGotten, 1);
                 assert.strictEqual(value, sentinel);
@@ -72,7 +72,7 @@ describe("Memoization of thenables", function () {
             assert.strictEqual(thenable.timesGotten, 0);
             var valuesGotten = 0;
 
-            derived.done(function (value) {
+            adapter.done(derived, function (value) {
                 assert.strictEqual(thenable.timesCalled, 1);
                 assert.strictEqual(thenable.timesGotten, 1);
                 assert.strictEqual(value, sentinel);
@@ -80,7 +80,7 @@ describe("Memoization of thenables", function () {
             });
 
             setTimeout(function () {
-                derived.done(function (value) {
+                adapter.done(derived, function (value) {
                     assert.strictEqual(thenable.timesCalled, 1);
                     assert.strictEqual(thenable.timesGotten, 1);
                     assert.strictEqual(value, sentinel);
@@ -108,14 +108,14 @@ describe("Memoization of thenables", function () {
         tuple2.fulfill();
 
         var valuesGotten = 0;
-        derived1.done(function (value) {
+        adapter.done(derived1, function (value) {
             assert.strictEqual(thenable.timesCalled, 1);
             assert.strictEqual(thenable.timesGotten, 1);
             assert.strictEqual(value, sentinel);
             ++valuesGotten;
         });
 
-        derived2.done(function (value) {
+        adapter.done(derived2, function (value) {
             assert.strictEqual(thenable.timesCalled, 1);
             assert.strictEqual(thenable.timesGotten, 1);
             assert.strictEqual(value, sentinel);

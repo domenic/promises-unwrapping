@@ -8,12 +8,16 @@ var UNSET = { "unset": "UNSET" };
 
 var ThenableCoercions = new WeakMap();
 
-function Promise() {
-    this._isPromise = true;
-    this._following = UNSET;
-    this._value = UNSET;
-    this._reason = UNSET;
-    this._derived = [];
+function NewlyCreatedPromiseObject() {
+    // The specs say "newly-created X object" to basically mean "`X[@@create]()`, or fall back to the default." We don't
+    // want to re-create the entire @@create spec mechanism, but we can produce something more or less the same.
+    var promise = Object.create(Promise.prototype);
+    promise._isPromise = true;
+    promise._following = UNSET;
+    promise._value = UNSET;
+    promise._reason = UNSET;
+    promise._derived = [];
+    return promise;
 }
 
 function IsPromise(x) {
@@ -57,7 +61,7 @@ function Then(p, onFulfilled, onRejected) {
     if (is_set(p._following)) {
         return Then(p._following, onFulfilled, onRejected);
     } else {
-        var q = new Promise();
+        var q = NewlyCreatedPromiseObject();
         var derived = { derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected };
         UpdateDerivedFromPromise(derived, p);
         return q;
@@ -137,7 +141,7 @@ function UpdateDerivedFromPromise(derived, promise) {
 function CoerceThenable(thenable, then) {
     // Missing assert: execution context stack is empty. Very hard to test; maybe could use `(new Error()).stack`?
 
-    var p = new Promise();
+    var p = NewlyCreatedPromiseObject();
 
     var resolve = function (x) {
         Resolve(p, x);
@@ -217,37 +221,75 @@ function is_set(internalPropertyValue) {
     return internalPropertyValue !== UNSET;
 }
 
+function define_method(object, methodName, method) {
+    Object.defineProperty(object, methodName, {
+        value: method,
+        configurable: true,
+        writable: true
+    });
+}
+
+//////
+// ES manifestation
+
+function Promise(resolver) {
+    // Because we don't want to implement the whole @@create mechanism, this doesn't work quite the same as is specced;
+    // we take a shortcut by using `NewlyCreatedPromiseObject`. But the result is roughly the same, modulo some
+    // subtleties when it comes to subclassing and the like.
+
+    if (!IsCallable(resolver)) {
+        throw new TypeError("non-callable resolver function");
+    }
+
+    var promise = NewlyCreatedPromiseObject();
+    var resolve = function (x) {
+        Resolve(promise, x);
+    };
+    var reject = function (r) {
+        Reject(promise, r);
+    };
+
+    try {
+        resolver.call(undefined, resolve, reject);
+    } catch (e) {
+        Reject(promise, e);
+    }
+
+    return promise;
+}
+
+define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
+    return Then(this, onFulfilled, onRejected);
+});
+
+define_method(Promise.prototype, "catch", function (onRejected) {
+    return Then(this, undefined, onRejected);
+});
+
 //////
 // Promises/A+ specification test adapter
 
-function addThenMethod(specificationPromise) {
-    specificationPromise.then = function (onFulfilled, onRejected) {
-        return addThenMethod(Then(specificationPromise, onFulfilled, onRejected));
-    };
-
-    // A `done` method is useful for writing tests.
-    specificationPromise.done = function (onFulfilled, onRejected) {
-        return this.then(onFulfilled, onRejected).then(undefined, function (reason) {
-            process.nextTick(function () {
-                throw reason;
-            });
+// A `done` function is useful for tests, to ensure no assertion errors are ignored.
+exports.done = function (promise, onFulfilled, onRejected) {
+    promise.then(onFulfilled, onRejected).catch(function (reason) {
+        process.nextTick(function () {
+            throw reason;
         });
-    };
-    return specificationPromise;
-}
+    });
+};
 
 exports.pending = function () {
-    var promise = addThenMethod(new Promise());
+    var resolvePromise, rejectPromise;
+    var promise = new Promise(function (resolve, reject) {
+        resolvePromise = resolve;
+        rejectPromise = reject;
+    });
 
+    // NB: Promises/A+ tests never pass promises (or thenables) to the adapter's `fulfill` method, so using
+    // `resolvePromise` is equivalent to some hypothetical fulfiller.
     return {
         promise: promise,
-        fulfill: function (value) {
-            // NB: Promises/A+ tests never pass promises (or thenables) to the adapter's `fulfill` method, so using
-            // `Resolve` is equivalent.
-            Resolve(promise, value);
-        },
-        reject: function (reason) {
-            Reject(promise, reason);
-        }
+        fulfill: resolvePromise,
+        reject: rejectPromise
     };
 };

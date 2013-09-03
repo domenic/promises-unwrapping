@@ -2,7 +2,7 @@
   "name": "promises-unwrapping",
   "version": "0.0.0",
   "description": "Some proto-spec work on exact promise semantics for the DOM and ES.",
-  "main": "test-abstract-implementation.js",
+  "main": "testable-implementation.js",
   "scripts": {
     "test": "mocha --harmony run-tests.js"
   },

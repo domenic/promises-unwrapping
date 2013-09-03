@@ -1,6 +1,6 @@
 "use strict";
 
-var adapter = require("./test-abstract-implementation");
+var adapter = require("./testable-implementation");
 var assert = require("assert");
 
 var sentinel = { sentinel: "SENTINEL" };

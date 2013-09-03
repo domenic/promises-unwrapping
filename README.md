@@ -169,7 +169,7 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. Assert: `IsObject(thenable)`.
 1. Assert: `IsCallable(then)`.
 1. Assert: the execution context stack is empty.
-1. Let `p` be a new promise.
+1. Let `p` be a newly-created promise object.
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
 1. Call `then.[[Call]](thenable, (resolve, reject))`.
@@ -191,7 +191,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. If `Type(promise)` is not `Object`, throw a `TypeError` exception.
 1. If `promise.[[IsPromise]]` is unset, then throw a `TypeError` exception.
 1. If `promise.[[IsPromise]]` is not `undefined`, then throw a `TypeError` exception.
-1. If `Type(resolver)` is not `Function`, then throw a `TypeError` exception.
+1. If not `IsCallable(resolver)`, throw a `TypeError` exception.
 1. Set `promise.[[IsPromise]]` to `true`.
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
@@ -203,7 +203,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise` called as part of a `new` expression with argument list `argumentList` simply delegates to the usual ECMAScript spec mechanisms for creating new objects, triggering the initialization subsequence of the above `Promise(resolver)` procedure.
 
-1. Return `OrdinaryConstructor(Promise, argumentsList)`.
+1. Return `OrdinaryConstruct(Promise, argumentsList)`.
 
 ## Properties of the `Promise` constructor
 
@@ -217,7 +217,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise.resolve` returns a new promise resolved with the passed argument.
 
-1. Let `p` be a newly-created promise.
+1. Let `p` be a newly-created promise object.
 1. Call `Resolve(p, x)`.
 1. Return `p`.
 
@@ -225,7 +225,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise.reject` returns a new promise rejected with the passed argument.
 
-1. Let `p` be a newly-created promise.
+1. Let `p` be a newly-created promise object.
 1. Call `Reject(p, r)`.
 1. Return `p`.
 
@@ -235,7 +235,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 1. If `IsPromise(x)`, return `x`.
 1. Otherwise,
-   1. Let `p` be a newly-created promise.
+   1. Let `p` be a newly-created promise object.
    1. Call `Resolve(p, x)`.
    1. Return `p`.
 

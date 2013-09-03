@@ -258,6 +258,28 @@ function Promise(resolver) {
     return promise;
 }
 
+define_method(Promise, "resolve", function (x) {
+    var p = NewlyCreatedPromiseObject();
+    Resolve(p, x);
+    return p;
+});
+
+define_method(Promise, "reject", function (r) {
+    var p = NewlyCreatedPromiseObject();
+    Reject(p, r);
+    return r;
+});
+
+define_method(Promise, "cast", function (x) {
+    if (IsPromise(x)) {
+        return x;
+    } else {
+        var p = NewlyCreatedPromiseObject();
+        Resolve(p, x);
+        return p;
+    }
+});
+
 define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
     return Then(this, onFulfilled, onRejected);
 });

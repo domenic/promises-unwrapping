@@ -98,7 +98,7 @@ The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reaso
    1. Call `UpdateDerived(derived, p)`.
 1. Clear `p.[[Derived]]`.
 
-Note: step 2 is not strictly necessary, as preconditions prevent `p.[[Derived]]` from ever being used again after this point.
+Note: step 3 is not strictly necessary, as preconditions prevent `p.[[Derived]]` from ever being used again after this point.
 
 ### `UpdateDerived(derived, originator)`
 

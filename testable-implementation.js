@@ -277,7 +277,7 @@ define_method(Promise, "resolve", function (x) {
 define_method(Promise, "reject", function (r) {
     var p = NewlyCreatedPromiseObject();
     Reject(p, r);
-    return r;
+    return p;
 });
 
 define_method(Promise, "cast", function (x) {

@@ -277,11 +277,8 @@ When `Promise` is called with the argument `resolver`, the following steps are t
    1. Let `index` be `index + 1`.
    1. Let `countdown` be `countdown + 1`.
 1. If `index` is `0`,
-   1. Let `emptyPromise` be a newly-created promise object.
-   1. Let `emptyArray` be `ArrayCreate(0)`.
-   1. Call `Resolve(emptyPromise, emptyArray)`.
-   1. Return `emptyPromise`.
-1. Otherwise, return `valuesPromise`.
+   1. Call `Resolve(emptyPromise, values)`.
+1. Return `valuesPromise`.
 
 ## Properties of the `Promise` Prototype Object
 

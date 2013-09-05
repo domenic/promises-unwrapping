@@ -330,13 +330,10 @@ define_method(Promise, "all", function (iterable) {
     }
 
     if (index === 0) {
-        var emptyPromise = NewlyCreatedPromiseObject();
-        var emptyArray = [];
-        Resolve(emptyPromise, emptyArray);
-        return emptyPromise;
-    } else {
-        return valuesPromise;
+        Resolve(valuesPromise, values);
     }
+
+    return valuesPromise;
 });
 
 define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {

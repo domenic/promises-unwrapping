@@ -302,6 +302,43 @@ define_method(Promise, "race", function (iterable) {
     return returnedPromise;
 });
 
+define_method(Promise, "all", function (iterable) {
+    var valuesPromise = NewlyCreatedPromiseObject();
+    var rejectValuesPromise = function (r) {
+        Reject(valuesPromise, r);
+    };
+
+    var values = [];
+    var countdown = 0;
+    var index = 0;
+
+    for (var nextValue of iterable) {
+        var currentIndex = index;
+        var nextPromise = ToPromise(nextValue);
+        var onFulfilled = function (v) {
+            Object.defineProperty(values, currentIndex, { value: v, writable: true, enumerable: true, configurable: true });
+            countdown = countdown - 1;
+            if (countdown === 0) {
+                Resolve(valuesPromise, values);
+            }
+        };
+
+        Then(nextPromise, onFulfilled, rejectValuesPromise);
+
+        index = index + 1;
+        countdown = countdown + 1;
+    }
+
+    if (index === 0) {
+        var emptyPromise = NewlyCreatedPromiseObject();
+        var emptyArray = [];
+        Resolve(emptyPromise, emptyArray);
+        return emptyPromise;
+    } else {
+        return valuesPromise;
+    }
+});
+
 define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
     return Then(this, onFulfilled, onRejected);
 });
@@ -337,3 +374,5 @@ exports.pending = function () {
         reject: rejectPromise
     };
 };
+
+exports.Promise = Promise;

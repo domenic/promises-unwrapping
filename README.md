@@ -257,6 +257,32 @@ When `Promise` is called with the argument `resolver`, the following steps are t
    1. Call `Then(nextPromise, resolve, reject)`.
 1. Return `returnedPromise`.
 
+### `Promise.all(iterable)`
+
+`Promise.all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises before running this algorithm.
+
+1. Let `valuesPromise` be a newly-created promise object.
+1. Let `rejectValuesPromise(r)` be an ECMAScript function that calls `Reject(promise, r)`.
+1. Let `values` be `ArrayCreate(0)`.
+1. Let `countdown` be `0`.
+1. Let `index` be `0`.
+1. For each value `nextValue` of `iterable`,
+   1. Let `currentIndex` be the current value of `index`.
+   1. Let `nextPromise` be `ToPromise(nextValue)`.
+   1. Let `onFulfilled(v)` be an ECMAScript function that:
+      1. Calls `values.[[DefineOwnProperty]](currentIndex, { [[Value]]: v, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }`.
+      1. Lets `countdown` be `countdown - 1`.
+      1. If `countdown` is `0`, calls `Resolve(valuesPromise, values)`.
+   1. Call `Then(nextPromise, onFulfilled, rejectValuesPromise)`.
+   1. Let `index` be `index + 1`.
+   1. Let `countdown` be `countdown + 1`.
+1. If `index` is `0`,
+   1. Let `emptyPromise` be a newly-created promise object.
+   1. Let `emptyArray` be `ArrayCreate(0)`.
+   1. Call `Resolve(emptyPromise, emptyArray)`.
+   1. Return `emptyPromise`.
+1. Otherwise, return `valuesPromise`.
+
 ## Properties of the `Promise` Prototype Object
 
 The `Promise` prototype object is itself an ordinary object. It is not a `Promise` instance and does not have a `[[IsPromise]]` internal data property.

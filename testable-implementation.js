@@ -282,7 +282,24 @@ define_method(Promise, "reject", function (r) {
 
 define_method(Promise, "cast", function (x) {
     return ToPromise(x);
+});
+
+define_method(Promise, "race", function (iterable) {
+    var returnedPromise = NewlyCreatedPromiseObject();
+
+    var resolve = function (x) {
+        Resolve(returnedPromise, x);
+    };
+    var reject = function (r) {
+        Reject(returnedPromise, r);
+    };
+
+    for (var nextValue of iterable) {
+        var nextPromise = ToPromise(nextValue);
+        Then(nextPromise, resolve, reject);
     }
+
+    return returnedPromise;
 });
 
 define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {

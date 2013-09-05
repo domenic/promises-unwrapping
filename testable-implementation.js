@@ -193,6 +193,16 @@ function SetReason(p, reason) {
     PropagateToDerived(p);
 }
 
+function ToPromise(x) {
+    if (IsPromise(x)) {
+        return x;
+    } else {
+        var p = NewlyCreatedPromiseObject();
+        Resolve(p, x);
+        return p;
+    }
+}
+
 //////
 // ES/environment functions
 
@@ -271,12 +281,7 @@ define_method(Promise, "reject", function (r) {
 });
 
 define_method(Promise, "cast", function (x) {
-    if (IsPromise(x)) {
-        return x;
-    } else {
-        var p = NewlyCreatedPromiseObject();
-        Resolve(p, x);
-        return p;
+    return ToPromise(x);
     }
 });
 

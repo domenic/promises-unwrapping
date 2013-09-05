@@ -41,6 +41,16 @@ The operator `IsPromise` checks for the promise brand on an object.
 1. Return `true` if `IsObject(x)` and `x.[[IsPromise]]` is `true`.
 1. Otherwise, return `false`.
 
+### `ToPromise(x)`
+
+The operator `ToPromise` coerces its argument to a promise, or returns the argument if it is already a promise.
+
+1. If `IsPromise(x)`, return `x`.
+1. Otherwise,
+   1. Let `p` be a newly-created promise object.
+   1. Call `Resolve(p, x)`.
+   1. Return `p`.
+
 ### `Resolve(p, x)`
 
 The operator `Resolve` resolves a promise with a value.
@@ -233,11 +243,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise.cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
-1. If `IsPromise(x)`, return `x`.
-1. Otherwise,
-   1. Let `p` be a newly-created promise object.
-   1. Call `Resolve(p, x)`.
-   1. Return `p`.
+1. Return `ToPromise(x)`.
 
 ## Properties of the `Promise` Prototype Object
 

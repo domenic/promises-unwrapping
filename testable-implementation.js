@@ -97,7 +97,7 @@ function UpdateDerived(derived, originator) {
                     }
 
                     if (is_set(then)) {
-                        if (typeof then === "function") {
+                        if (IsCallable(then)) {
                             var coerced = CoerceThenable(originator._value, then);
                             UpdateDerivedFromPromise(derived, coerced);
                         } else {

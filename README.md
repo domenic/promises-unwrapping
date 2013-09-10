@@ -113,7 +113,7 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
       1. Otherwise,
          1. Let `then` be `Get(originator.[[Value]], "then")`.
          1. If retrieving the property throws an exception `e`, call `UpdateDerivedFromReason(derived, e)`.
-         1. Otherwise, if `Type(then)` is `Function`,
+         1. Otherwise, if `IsCallable(then)`,
              1. Let `coerced` be `CoerceThenable(originator.[[Value]], then)`.
              1. Call `UpdateDerivedFromPromise(derived, coerced)`.
          1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.

@@ -262,7 +262,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 `Promise.all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises before running this algorithm.
 
 1. Let `valuesPromise` be a newly-created promise object.
-1. Let `rejectValuesPromise(r)` be an ECMAScript function that calls `Reject(promise, r)`.
+1. Let `rejectValuesPromise(r)` be an ECMAScript function that calls `Reject(valuesPromise, r)`.
 1. Let `values` be `ArrayCreate(0)`.
 1. Let `countdown` be `0`.
 1. Let `index` be `0`.

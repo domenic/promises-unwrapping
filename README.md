@@ -250,8 +250,8 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 `Promise.race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises before running this algorithm.
 
 1. Let `returnedPromise` be a newly-created promise object.
-1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
-1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
+1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(returnedPromise, x)`.
+1. Let `reject(r)` be an ECMAScript function that calls `Reject(returnedPromise, r)`.
 1. For each value `nextValue` of `iterable`,
    1. Let `nextPromise` be `ToPromise(nextValue)`.
    1. Call `Then(nextPromise, resolve, reject)`.

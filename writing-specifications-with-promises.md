@@ -80,5 +80,6 @@ Promise-returning functions should never synchronously throw errors, since that 
 1. Let `p` be a newly-created promise.
 1. Let `onFulfilled(v)` be a function that waits `ms` milliseconds, then resolves `p` with `v`.
 1. Let `onRejected(r)` be a function that waits `ms` milliseconds, then rejects `p` with `r`.
-1. Transform `promise` with `onFulfilled` and `onRejected`.
+1. Let `castToPromise` be the result of casting `promise` to a promise.
+1. Transform `castToPromise` with `onFulfilled` and `onRejected`.
 1. Return `p`.

@@ -15,6 +15,7 @@ A promise carries several internal data properties:
 - `[[Value]]`: either unset, or promise's direct fulfillment value (derived by resolving it with a non-thenable).
 - `[[Reason]]`: either unset, or a promise's direct rejection reason (derived by rejecting it).
 - `[[Derived]]`: a list, initially empty, of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` are set.
+- `[[PromiseConstructor]]`: the function object that was used to construct this promise. Used for branding checks in `Promise.cast`.
 
 ### The `ThenableCoercions` Weak Map
 
@@ -41,15 +42,15 @@ The operator `IsPromise` checks for the promise brand on an object.
 1. Return `true` if `IsObject(x)` and `x.[[IsPromise]]` is `true`.
 1. Otherwise, return `false`.
 
-### `ToPromise(x)`
+### `ToPromise(C, x)`
 
-The operator `ToPromise` coerces its argument to a promise, or returns the argument if it is already a promise.
+The operator `ToPromise` coerces its argument to a promise, ensuring it is of the specified constructor `C`, or returns the argument if it is already a promise matching that constructor.
 
-1. If `IsPromise(x)`, return `x`.
+1. If `IsPromise(x)` and `SameValue(x.[[PromiseConstructor]], C)` is `true`, return `x`.
 1. Otherwise,
-   1. Let `p` be a newly-created promise object.
-   1. Call `Resolve(p, x)`.
-   1. Return `p`.
+   1. Let `deferred` be `GetDeferred(C)`.
+   1. Call `deferred.[[Resolve]](x)`.
+   1. Return `deferred.[[Promise]]`.
 
 ### `Resolve(p, x)`
 
@@ -236,7 +237,9 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise[@@create]()` allocates a new uninitialized promise object, installing the unforgable brand `[[IsPromise]]` on the promise.
 
-1. Return `OrdinaryCreateFromConstructor(Promise, "%PromisePrototype%", ([[IsPromise]]))`.
+1. Let `p` be `OrdinaryCreateFromConstructor(this, "%PromisePrototype%", ([[IsPromise]]))`.
+1. Set `p.[[PromiseConstructor]]` to `this`.
+1. Return `p`.
 
 ### `Promise.resolve(x)`
 
@@ -258,7 +261,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise.cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
-1. Return `ToPromise(x)`.
+1. Return `ToPromise(this, x)`.
 
 ### `Promise.race(iterable)`
 
@@ -266,7 +269,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 1. Let `deferred` be `GetDeferred(this)`.
 1. For each value `nextValue` of `iterable`,
-   1. Let `nextPromise` be `ToPromise(nextValue)`.
+   1. Let `nextPromise` be `ToPromise(this, nextValue)`.
    1. Call `Then(nextPromise, deferred.[[Resolve]], deferred.[[Reject]])`.
 1. Return `deferred.[[Promise]]`.
 
@@ -280,7 +283,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Let `index` be `0`.
 1. For each value `nextValue` of `iterable`,
    1. Let `currentIndex` be the current value of `index`.
-   1. Let `nextPromise` be `ToPromise(nextValue)`.
+   1. Let `nextPromise` be `ToPromise(this, nextValue)`.
    1. Let `onFulfilled(v)` be an ECMAScript function that:
       1. Calls `values.[[DefineOwnProperty]](currentIndex, { [[Value]]: v, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }`.
       1. Lets `countdown` be `countdown - 1`.

@@ -16,6 +16,7 @@ function NewlyCreatedPromiseObject() {
     promise._following = UNSET;
     promise._value = UNSET;
     promise._reason = UNSET;
+    promise._promiseConstructor = Promise;
     promise._derived = [];
     return promise;
 }
@@ -193,13 +194,13 @@ function SetReason(p, reason) {
     PropagateToDerived(p);
 }
 
-function ToPromise(x) {
-    if (IsPromise(x)) {
+function ToPromise(C, x) {
+    if (IsPromise(x) && SameValue(x._promiseConstructor, C) === true) {
         return x;
     } else {
-        var p = NewlyCreatedPromiseObject();
-        Resolve(p, x);
-        return p;
+        var deferred = GetDeferred(C);
+        deferred.resolve(x);
+        return deferred.promise;
     }
 }
 
@@ -308,14 +309,14 @@ define_method(Promise, "reject", function (r) {
 });
 
 define_method(Promise, "cast", function (x) {
-    return ToPromise(x);
+    return ToPromise(this, x);
 });
 
 define_method(Promise, "race", function (iterable) {
     var deferred = GetDeferred(this);
 
     for (var nextValue of iterable) {
-        var nextPromise = ToPromise(nextValue);
+        var nextPromise = ToPromise(this, nextValue);
         Then(nextPromise, deferred.resolve, deferred.reject);
     }
 
@@ -331,7 +332,7 @@ define_method(Promise, "all", function (iterable) {
 
     for (var nextValue of iterable) {
         var currentIndex = index;
-        var nextPromise = ToPromise(nextValue);
+        var nextPromise = ToPromise(this, nextValue);
         var onFulfilled = function (v) {
             Object.defineProperty(values, currentIndex, { value: v, writable: true, enumerable: true, configurable: true });
             countdown = countdown - 1;

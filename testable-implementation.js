@@ -62,9 +62,19 @@ function Then(p, onFulfilled, onRejected) {
     if (is_set(p._following)) {
         return Then(p._following, onFulfilled, onRejected);
     } else {
-        var q = NewlyCreatedPromiseObject();
-        var derived = { derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected };
-        UpdateDerivedFromPromise(derived, p);
+        var C = UNSET, q;
+        try {
+            C = p.constructor;
+        } catch (e) {
+            q = NewlyCreatedPromiseObject();
+            Reject(q, e);
+        }
+        if (is_set(C)) {
+            q = GetDeferred(C).promise;
+            var derived = { derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected };
+            UpdateDerivedFromPromise(derived, p);
+        }
+
         return q;
     }
 }

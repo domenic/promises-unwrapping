@@ -85,9 +85,14 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
 1. If `p.[[Following]]` is set,
    1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
 1. Otherwise,
-   1. Let `q` be a new promise.
-   1. Let `derived` be `{ [[DerivedPromise]]: q, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }`.
-   1. Call `UpdateDerivedFromPromise(derived, p)`.
+   1. Let `C` be `Get(p, "constructor")`.
+   1. If retrieving the property throws an exception `e`,
+      1. Let `q` be a newly-created promise object.
+      1. Call `Reject(q, e)`.
+   1. Otherwise,
+      1. Let `q` be `GetDeferred(C).[[Promise]]`.
+      1. Let `derived` be `{ [[DerivedPromise]]: q, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }`.
+      1. Call `UpdateDerivedFromPromise(derived, p)`.
    1. Return `q`.
 
 ### `PropagateToDerived(p)`

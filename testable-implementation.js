@@ -341,7 +341,7 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
 });
 
 define_method(Promise.prototype, "catch", function (onRejected) {
-    return Then(this, undefined, onRejected);
+    return this.then(undefined, onRejected);
 });
 
 //////

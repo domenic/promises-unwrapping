@@ -301,5 +301,4 @@ The initial value of `Promise.prototype.constructor` is the built-in `Promise` c
 
 ### `Promise.prototype.catch(onRejected)`
 
-1. If `IsPromise(this)` is `false`, throw a `TypeError`.
-1. Otherwise, return `Then(this, undefined, onRejected)`.
+1. Return `Invoke(this, "then", (undefined, onRejected))`.

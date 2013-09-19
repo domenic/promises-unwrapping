@@ -187,6 +187,21 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. Call `ThenableCoercions.set(thenable, p)`.
 1. Return `p`.
 
+### `GetDeferred(C)`
+
+The operator `GetDeferred` takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the `Promise` constructor. We use it to generalize static methods of `Promise` to any subclass.
+
+1. If `IsConstructor(C)`,
+   1. Let `resolver` be an ECMAScript function that:
+      1. Lets `resolve` be the value `resolver` is passed as its first argument.
+      1. Lets `reject` be the value `resolver` is passed as its second argument.
+   1. Let `promise` be `C.[[Construct]]((resolver))`.
+1. Otherwise,
+   1. Let `promise` be a newly-created promise object.
+   1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
+   1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
+1. Return the record `{ [[Promise]]: promise, [[Resolve]]: resolve, [[Reject]]: reject }`.
+
 ## The `Promise` constructor
 
 The `Promise` constructor is the `%Promise%` intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its `this` value with the internal state necessary to support the `Promise.prototype` internal methods.
@@ -227,17 +242,17 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise.resolve` returns a new promise resolved with the passed argument.
 
-1. Let `p` be a newly-created promise object.
-1. Call `Resolve(p, x)`.
-1. Return `p`.
+1. Let `deferred` be `GetDeferred(this)`.
+1. Call `deferred.[[Resolve]](x)`.
+1. Return `deferred.[[Promise]]`.
 
 ### `Promise.reject(r)`
 
 `Promise.reject` returns a new promise rejected with the passed argument.
 
-1. Let `p` be a newly-created promise object.
-1. Call `Reject(p, r)`.
-1. Return `p`.
+1. Let `deferred` be `GetDeferred(this)`.
+1. Call `deferred.[[Reject]](r)`.
+1. Return `deferred.[[Promise]]`.
 
 ### `Promise.cast(x)`
 
@@ -249,20 +264,17 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 `Promise.race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises before running this algorithm.
 
-1. Let `returnedPromise` be a newly-created promise object.
-1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(returnedPromise, x)`.
-1. Let `reject(r)` be an ECMAScript function that calls `Reject(returnedPromise, r)`.
+1. Let `deferred` be `GetDeferred(this)`.
 1. For each value `nextValue` of `iterable`,
    1. Let `nextPromise` be `ToPromise(nextValue)`.
-   1. Call `Then(nextPromise, resolve, reject)`.
-1. Return `returnedPromise`.
+   1. Call `Then(nextPromise, deferred.[[Resolve]], deferred.[[Reject]])`.
+1. Return `deferred.[[Promise]]`.
 
 ### `Promise.all(iterable)`
 
 `Promise.all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises before running this algorithm.
 
-1. Let `valuesPromise` be a newly-created promise object.
-1. Let `rejectValuesPromise(r)` be an ECMAScript function that calls `Reject(valuesPromise, r)`.
+1. Let `deferred` be `GetDeferred(this)`.
 1. Let `values` be `ArrayCreate(0)`.
 1. Let `countdown` be `0`.
 1. Let `index` be `0`.
@@ -272,13 +284,13 @@ When `Promise` is called with the argument `resolver`, the following steps are t
    1. Let `onFulfilled(v)` be an ECMAScript function that:
       1. Calls `values.[[DefineOwnProperty]](currentIndex, { [[Value]]: v, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }`.
       1. Lets `countdown` be `countdown - 1`.
-      1. If `countdown` is `0`, calls `Resolve(valuesPromise, values)`.
-   1. Call `Then(nextPromise, onFulfilled, rejectValuesPromise)`.
+      1. If `countdown` is `0`, calls `deferred.[[Resolve]](values)`.
+   1. Call `Then(nextPromise, onFulfilled, deferred.[[Reject]])`.
    1. Let `index` be `index + 1`.
    1. Let `countdown` be `countdown + 1`.
 1. If `index` is `0`,
-   1. Call `Resolve(valuesPromise, values)`.
-1. Return `valuesPromise`.
+   1. Call `deferred.[[Resolve]](values)`.
+1. Return `deferred.[[Promise]]`.
 
 ## Properties of the `Promise` Prototype Object
 

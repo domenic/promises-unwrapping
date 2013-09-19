@@ -203,6 +203,27 @@ function ToPromise(x) {
     }
 }
 
+function GetDeferred(C) {
+    var promise, resolve, reject;
+    if (IsConstructor(C)) {
+        var resolver = function (firstArgument, secondArgument) {
+            resolve = firstArgument;
+            reject = secondArgument;
+        };
+        promise = new C(resolver);
+    } else {
+        promise = NewlyCreatedPromiseObject();
+        resolve = function (x) {
+            Resolve(promise, x);
+        };
+        reject = function (r) {
+            Reject(promise, r);
+        };
+    }
+
+    return { promise: promise, resolve: resolve, reject: reject };
+}
+
 //////
 // ES/environment functions
 
@@ -211,6 +232,12 @@ function IsObject(x) {
 }
 
 function IsCallable(x) {
+    return typeof x === "function";
+}
+
+function IsConstructor(x) {
+    // The actual steps include testing whether `x` has a `[[Construct]]` internal method.
+    // This is NOT possible to determine in pure JS, so this is just an approximation.
     return typeof x === "function";
 }
 
@@ -269,15 +296,15 @@ function Promise(resolver) {
 }
 
 define_method(Promise, "resolve", function (x) {
-    var p = NewlyCreatedPromiseObject();
-    Resolve(p, x);
-    return p;
+    var deferred = GetDeferred(this);
+    deferred.resolve(x);
+    return deferred.promise;
 });
 
 define_method(Promise, "reject", function (r) {
-    var p = NewlyCreatedPromiseObject();
-    Reject(p, r);
-    return p;
+    var deferred = GetDeferred(this);
+    deferred.reject(r);
+    return deferred.promise;
 });
 
 define_method(Promise, "cast", function (x) {
@@ -285,28 +312,18 @@ define_method(Promise, "cast", function (x) {
 });
 
 define_method(Promise, "race", function (iterable) {
-    var returnedPromise = NewlyCreatedPromiseObject();
-
-    var resolve = function (x) {
-        Resolve(returnedPromise, x);
-    };
-    var reject = function (r) {
-        Reject(returnedPromise, r);
-    };
+    var deferred = GetDeferred(this);
 
     for (var nextValue of iterable) {
         var nextPromise = ToPromise(nextValue);
-        Then(nextPromise, resolve, reject);
+        Then(nextPromise, deferred.resolve, deferred.reject);
     }
 
-    return returnedPromise;
+    return deferred.promise;
 });
 
 define_method(Promise, "all", function (iterable) {
-    var valuesPromise = NewlyCreatedPromiseObject();
-    var rejectValuesPromise = function (r) {
-        Reject(valuesPromise, r);
-    };
+    var deferred = GetDeferred(this);
 
     var values = [];
     var countdown = 0;
@@ -319,21 +336,21 @@ define_method(Promise, "all", function (iterable) {
             Object.defineProperty(values, currentIndex, { value: v, writable: true, enumerable: true, configurable: true });
             countdown = countdown - 1;
             if (countdown === 0) {
-                Resolve(valuesPromise, values);
+                deferred.resolve(values);
             }
         };
 
-        Then(nextPromise, onFulfilled, rejectValuesPromise);
+        Then(nextPromise, onFulfilled, deferred.reject);
 
         index = index + 1;
         countdown = countdown + 1;
     }
 
     if (index === 0) {
-        Resolve(valuesPromise, values);
+        deferred.resolve(values);
     }
 
-    return valuesPromise;
+    return deferred.promise;
 });
 
 define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {

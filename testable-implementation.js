@@ -16,6 +16,7 @@ function NewlyCreatedPromiseObject() {
     promise._following = UNSET;
     promise._value = UNSET;
     promise._reason = UNSET;
+    promise._promiseConstructor = Promise;
     promise._derived = [];
     return promise;
 }
@@ -61,9 +62,19 @@ function Then(p, onFulfilled, onRejected) {
     if (is_set(p._following)) {
         return Then(p._following, onFulfilled, onRejected);
     } else {
-        var q = NewlyCreatedPromiseObject();
-        var derived = { derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected };
-        UpdateDerivedFromPromise(derived, p);
+        var C = UNSET, q;
+        try {
+            C = p.constructor;
+        } catch (e) {
+            q = NewlyCreatedPromiseObject();
+            Reject(q, e);
+        }
+        if (is_set(C)) {
+            q = GetDeferred(C).promise;
+            var derived = { derivedPromise: q, onFulfilled: onFulfilled, onRejected: onRejected };
+            UpdateDerivedFromPromise(derived, p);
+        }
+
         return q;
     }
 }
@@ -193,14 +204,35 @@ function SetReason(p, reason) {
     PropagateToDerived(p);
 }
 
-function ToPromise(x) {
-    if (IsPromise(x)) {
+function ToPromise(C, x) {
+    if (IsPromise(x) && SameValue(x._promiseConstructor, C) === true) {
         return x;
     } else {
-        var p = NewlyCreatedPromiseObject();
-        Resolve(p, x);
-        return p;
+        var deferred = GetDeferred(C);
+        deferred.resolve(x);
+        return deferred.promise;
     }
+}
+
+function GetDeferred(C) {
+    var promise, resolve, reject;
+    if (IsConstructor(C)) {
+        var resolver = function (firstArgument, secondArgument) {
+            resolve = firstArgument;
+            reject = secondArgument;
+        };
+        promise = new C(resolver);
+    } else {
+        promise = NewlyCreatedPromiseObject();
+        resolve = function (x) {
+            Resolve(promise, x);
+        };
+        reject = function (r) {
+            Reject(promise, r);
+        };
+    }
+
+    return { promise: promise, resolve: resolve, reject: reject };
 }
 
 //////
@@ -211,6 +243,12 @@ function IsObject(x) {
 }
 
 function IsCallable(x) {
+    return typeof x === "function";
+}
+
+function IsConstructor(x) {
+    // The actual steps include testing whether `x` has a `[[Construct]]` internal method.
+    // This is NOT possible to determine in pure JS, so this is just an approximation.
     return typeof x === "function";
 }
 
@@ -269,44 +307,34 @@ function Promise(resolver) {
 }
 
 define_method(Promise, "resolve", function (x) {
-    var p = NewlyCreatedPromiseObject();
-    Resolve(p, x);
-    return p;
+    var deferred = GetDeferred(this);
+    deferred.resolve(x);
+    return deferred.promise;
 });
 
 define_method(Promise, "reject", function (r) {
-    var p = NewlyCreatedPromiseObject();
-    Reject(p, r);
-    return p;
+    var deferred = GetDeferred(this);
+    deferred.reject(r);
+    return deferred.promise;
 });
 
 define_method(Promise, "cast", function (x) {
-    return ToPromise(x);
+    return ToPromise(this, x);
 });
 
 define_method(Promise, "race", function (iterable) {
-    var returnedPromise = NewlyCreatedPromiseObject();
-
-    var resolve = function (x) {
-        Resolve(returnedPromise, x);
-    };
-    var reject = function (r) {
-        Reject(returnedPromise, r);
-    };
+    var deferred = GetDeferred(this);
 
     for (var nextValue of iterable) {
-        var nextPromise = ToPromise(nextValue);
-        Then(nextPromise, resolve, reject);
+        var nextPromise = ToPromise(this, nextValue);
+        Then(nextPromise, deferred.resolve, deferred.reject);
     }
 
-    return returnedPromise;
+    return deferred.promise;
 });
 
 define_method(Promise, "all", function (iterable) {
-    var valuesPromise = NewlyCreatedPromiseObject();
-    var rejectValuesPromise = function (r) {
-        Reject(valuesPromise, r);
-    };
+    var deferred = GetDeferred(this);
 
     var values = [];
     var countdown = 0;
@@ -314,26 +342,26 @@ define_method(Promise, "all", function (iterable) {
 
     for (var nextValue of iterable) {
         var currentIndex = index;
-        var nextPromise = ToPromise(nextValue);
+        var nextPromise = ToPromise(this, nextValue);
         var onFulfilled = function (v) {
             Object.defineProperty(values, currentIndex, { value: v, writable: true, enumerable: true, configurable: true });
             countdown = countdown - 1;
             if (countdown === 0) {
-                Resolve(valuesPromise, values);
+                deferred.resolve(values);
             }
         };
 
-        Then(nextPromise, onFulfilled, rejectValuesPromise);
+        Then(nextPromise, onFulfilled, deferred.reject);
 
         index = index + 1;
         countdown = countdown + 1;
     }
 
     if (index === 0) {
-        Resolve(valuesPromise, values);
+        deferred.resolve(values);
     }
 
-    return valuesPromise;
+    return deferred.promise;
 });
 
 define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
@@ -341,7 +369,7 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
 });
 
 define_method(Promise.prototype, "catch", function (onRejected) {
-    return Then(this, undefined, onRejected);
+    return this.then(undefined, onRejected);
 });
 
 //////

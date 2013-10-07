@@ -14,7 +14,7 @@ A promise carries several internal data properties:
 - `[[Following]]`: either unset, or a promise that `p` is following.
 - `[[Value]]`: either unset, or promise's direct fulfillment value (derived by resolving it with a non-thenable).
 - `[[Reason]]`: either unset, or a promise's direct rejection reason (derived by rejecting it).
-- `[[Derived]]`: a list, initially empty, of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` are set.
+- `[[Derived]]`: a List, initially empty, of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` are set.
 - `[[PromiseConstructor]]`: the function object that was used to construct this promise. Used for branding checks in `Promise.cast`.
 
 ### The `ThenableCoercions` Weak Map
@@ -63,12 +63,12 @@ The operator `Resolve` resolves a promise with a value.
       1. Call `SetReason(p, selfResolutionError)`.
    1. Otherwise, if `x.[[Following]]` is set,
       1. Let `p.[[Following]]` be `x.[[Following]]`.
-      1. Add `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` to `x.[[Following]].[[Derived]]`.
+      1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Following]].[[Derived]]`.
    1. Otherwise, if `x.[[Value]]` is set, call `SetValue(p, x.[[Value]])`.
    1. Otherwise, if `x.[[Reason]]` is set, call `SetReason(p, x.[[Reason]])`.
    1. Otherwise,
       1. Let `p.[[Following]]` be `x`.
-      1. Add `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` to `x.[[Derived]]`.
+      1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
 1. Otherwise, call `SetValue(p, x)`.
 
 ### `Reject(p, r)`
@@ -100,9 +100,9 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
 The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reason]]` to all of its derived promises.
 
 1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
-1. For each derived promise transform `derived` in `p.[[Derived]]`,
+1. Repeat for each `derived` that is an element of `p.[[Derived]]`, in original insertion order
    1. Call `UpdateDerived(derived, p)`.
-1. Clear `p.[[Derived]]`.
+1. Set `p.[[Derived]]` to a new empty List.
 
 Note: step 3 is not strictly necessary, as preconditions prevent `p.[[Derived]]` from ever being used again after this point.
 
@@ -145,7 +145,7 @@ The operator `UpdateDerivedFromReason` propagates a reason to a derived promise,
 The operator `UpdateDerivedFromPromise` propagates one promise's state to the derived promise, using the relevant transform if it is callable.
 
 1. If `promise.[[Value]]` or `promise.[[Reason]]` is set, call `UpdateDerived(derived, promise)`.
-1. Otherwise, add `derived` to `promise.[[Derived]]`.
+1. Otherwise, append `derived` as the last element of `promise.[[Derived]]`.
 
 ### `CallHandler(derivedPromise, handler, argument)`
 
@@ -224,6 +224,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. If `promise.[[IsPromise]]` is not `undefined`, then throw a `TypeError` exception.
 1. If not `IsCallable(resolver)`, throw a `TypeError` exception.
 1. Set `promise.[[IsPromise]]` to `true`.
+1. Set `promise.[[Derived]]` to a new empty List. 
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
 1. Call `resolver.[[Call]](undefined, (resolve, reject))`.

@@ -271,13 +271,23 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 ### Promise.race ( iterable )
 
-`Promise.race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises before running this algorithm.
+`Promise.race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
 1. Let `deferred` be `GetDeferred(this)`.
-1. For each value `nextValue` of `iterable`,
-   1. Let `nextPromise` be `ToPromise(this, nextValue)`.
-   1. Call `Then(nextPromise, deferred.[[Resolve]], deferred.[[Reject]])`.
-1. Return `deferred.[[Promise]]`.
+1. Repeat
+   1. Let `next` be the result of `IteratorStep(iterable)`.
+   1. If `next` is an abrupt completion,
+      1. Call `deferred.[[Reject]].[[Call]](undefined, (next.[[value]]))`.
+      1. Return `deferred.[[Promise]]`.
+   1. Otherwise, if `nextResult` is `false`, then return `deferred.[[Promise]]`.
+   1. Otherwise,
+      1. Let `nextValue` be `IteratorValue(next)`.
+      1. If `nextValue` is an abrupt completion,
+         1. Call `deferred.[[Reject]].[[Call]](undefined, (nextValue.[[value]]))`.
+         1. Return `deferred.[[Promise]]`.
+      1. Otherwise,
+         1. Let `nextPromise` be `ToPromise(this, nextValue)`.
+         1. Call `Then(nextPromise, deferred.[[Resolve]], deferred.[[Reject]])`.
 
 ### Promise.all ( iterable )
 

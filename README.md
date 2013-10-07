@@ -279,7 +279,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
    1. If `next` is an abrupt completion,
       1. Call `deferred.[[Reject]].[[Call]](undefined, (next.[[value]]))`.
       1. Return `deferred.[[Promise]]`.
-   1. Otherwise, if `nextResult` is `false`, then return `deferred.[[Promise]]`.
+   1. Otherwise, if `next` is `false`, return `deferred.[[Promise]]`.
    1. Otherwise,
       1. Let `nextValue` be `IteratorValue(next)`.
       1. If `nextValue` is an abrupt completion,
@@ -291,25 +291,35 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 ### Promise.all ( iterable )
 
-`Promise.all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises before running this algorithm.
+`Promise.all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
 1. Let `deferred` be `GetDeferred(this)`.
 1. Let `values` be `ArrayCreate(0)`.
 1. Let `countdown` be `0`.
 1. Let `index` be `0`.
-1. For each value `nextValue` of `iterable`,
-   1. Let `currentIndex` be the current value of `index`.
-   1. Let `nextPromise` be `ToPromise(this, nextValue)`.
-   1. Let `onFulfilled(v)` be an ECMAScript function that:
-      1. Calls `values.[[DefineOwnProperty]](currentIndex, { [[Value]]: v, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }`.
-      1. Lets `countdown` be `countdown - 1`.
-      1. If `countdown` is `0`, calls `deferred.[[Resolve]].[[Call]](undefined, (values))`.
-   1. Call `Then(nextPromise, onFulfilled, deferred.[[Reject]])`.
-   1. Let `index` be `index + 1`.
-   1. Let `countdown` be `countdown + 1`.
-1. If `index` is `0`,
-   1. Call `deferred.[[Resolve]].[[Call]](undefined, (values))`.
-1. Return `deferred.[[Promise]]`.
+1. Repeat
+   1. Let `next` be the result of `IteratorStep(iterable)`.
+   1. If `next` is an abrupt completion,
+      1. Call `deferred.[[Reject]].[[Call]](undefined, (next.[[value]]))`.
+      1. Return `deferred.[[Promise]]`.
+   1. Otherwise, if `next` is `false`,
+      1. If `index` is `0`, call `deferred.[[Resolve]].[[Call]](undefined, (values))`.
+      1. Return `deferred.[[Promise]]`.
+   1. Otherwise,
+      1. Let `nextValue` be `IteratorValue(next)`.
+      1. If `nextValue` is an abrupt completion,
+         1. Call `deferred.[[Reject]].[[Call]](undefined, (nextValue.[[value]]))`.
+         1. Return `deferred.[[Promise]]`.
+      1. Otherwise,
+         1. Let `nextPromise` be `ToPromise(this, nextValue)`.
+         1. Let `currentIndex` be the current value of `index`.
+         1. Let `onFulfilled(v)` be an ECMAScript function that:
+            1. Calls `values.[[DefineOwnProperty]](currentIndex, { [[Value]]: v, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }`.
+            1. Sets `countdown` to `countdown - 1`.
+            1. If `countdown` is `0`, calls `deferred.[[Resolve]].[[Call]](undefined, (values))`.
+         1. Call `Then(nextPromise, onFulfilled, deferred.[[Reject]])`.
+         1. Set `index` to `index + 1`.
+         1. Set `countdown` to `countdown + 1`.
 
 ## Properties of the Promise Prototype Object
 

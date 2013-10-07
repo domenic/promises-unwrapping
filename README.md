@@ -16,7 +16,7 @@ To successfully and consistently assimilate thenable objects into real promises,
 
 ### The Derived Promise Transform Specification Type
 
-The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's `[[Derived]]` internal data property until the promise's `[[Value]]` or `[[Reason]]` are set, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
+The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's `[[Derived]]` internal data property until the promise's `[[Value]]` or `[[Reason]]` are present, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
 
 Derived promise transforms are Records composed of three named fields:
 
@@ -45,18 +45,18 @@ The operator `ToPromise` coerces its argument to a promise, ensuring it is of th
 
 The operator `Resolve` resolves a promise with a value.
 
-1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, return.
+1. If `p` has a `[[Following]]`, `[[Value]]`, or `[[Reason]]` internal data property, return.
 1. If `IsPromise(x)` is `true`,
    1. If `SameValue(p, x)`,
       1. Let `selfResolutionError` be a newly-created `TypeError` object.
       1. Call `SetReason(p, selfResolutionError)`.
-   1. Otherwise, if `x.[[Following]]` is set,
-      1. Let `p.[[Following]]` be `x.[[Following]]`.
+   1. Otherwise, if `x` has a `[[Following]]` internal data property,
+      1. Set `p.[[Following]]` to `x.[[Following]]`.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Following]].[[Derived]]`.
-   1. Otherwise, if `x.[[Value]]` is set, call `SetValue(p, x.[[Value]])`.
-   1. Otherwise, if `x.[[Reason]]` is set, call `SetReason(p, x.[[Reason]])`.
+   1. Otherwise, if `x` has a `[[Value]]` internal data property, call `SetValue(p, x.[[Value]])`.
+   1. Otherwise, if `x` has a `[[Reason]]` internal data property, call `SetReason(p, x.[[Reason]])`.
    1. Otherwise,
-      1. Let `p.[[Following]]` be `x`.
+      1. Set `p.[[Following]]` to `x`.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
 1. Otherwise, call `SetValue(p, x)`.
 
@@ -71,7 +71,7 @@ The operator `Reject` rejects a promise with a reason.
 
 The operator `Then` queues up fulfillment and/or rejection handlers on a promise for when it becomes fulfilled or rejected, or schedules them to be called in the next microtask if the promise is already fulfilled or rejected. It returns a derived promise, transformed by the passed handlers.
 
-1. If `p.[[Following]]` is set,
+1. If `p` has a `[[Following]]` internal data property,
    1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
 1. Otherwise,
    1. Let `C` be `Get(p, "constructor")`.
@@ -88,7 +88,7 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
 
 The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reason]]` to all of its derived promises.
 
-1. Assert: exactly one of `p.[[Value]]` or `p.[[Reason]]` is set.
+1. Assert: `p` has either a `[[Value]]` or `[[Reason]]` internal data property, but not both.
 1. Repeat for each `derived` that is an element of `p.[[Derived]]`, in original insertion order
    1. Call `UpdateDerived(derived, p)`.
 1. Set `p.[[Derived]]` to a new empty List.
@@ -99,8 +99,8 @@ Note: step 3 is not strictly necessary, as preconditions prevent `p.[[Derived]]`
 
 The operator `UpdateDerived` propagates a promise's state to a single derived promise using any relevant transforms.
 
-1. Assert: exactly one of `originator.[[Value]]` or `originator.[[Reason]]` is set.
-1. If `originator.[[Value]]` is set,
+1. Assert: `originator` has either a `[[Value]]` or `[[Reason]]` internal data property, but not both.
+1. If `originator` has a `[[Value]]` internal data property,
    1. If `IsObject(originator.[[Value]])`, queue a microtask to run the following:
       1. If `ThenableCoercions.has(originator.[[Value]])`,
          1. Let `coercedAlready` be `ThenableCoercions.get(originator.[[Value]])`.
@@ -133,7 +133,7 @@ The operator `UpdateDerivedFromReason` propagates a reason to a derived promise,
 
 The operator `UpdateDerivedFromPromise` propagates one promise's state to the derived promise, using the relevant transform if it is callable.
 
-1. If `promise.[[Value]]` or `promise.[[Reason]]` is set, call `UpdateDerived(derived, promise)`.
+1. If `promise` has `[[Value]]` or `[[Reason]]` internal data properties, call `UpdateDerived(derived, promise)`.
 1. Otherwise, append `derived` as the last element of `promise.[[Derived]]`.
 
 ### CallHandler ( derivedPromise , handler , argument )
@@ -149,9 +149,9 @@ The operator `CallHandler` applies a transformation to a value or reason and use
 
 The operator `SetValue` encapsulates the process of setting a promise's value and then propagating this to any derived promises.
 
-1. Assert: neither `p.[[Value]]` nor `p.[[Reason]]` are set.
+1. Assert: `p` has neither `[[Value]]` nor `[[Reason]]` internal data properties.
 1. Set `p.[[Value]]` to `value`.
-1. Unset `p.[[Following]]`.
+1. Remove the `[[Following]]` internal data property from `p`.
 1. Call `PropagateToDerived(p)`.
 
 Note: step 3 is not strictly necessary, as all code paths check `p.[[Value]]` before using `p.[[Following]]`.
@@ -160,9 +160,9 @@ Note: step 3 is not strictly necessary, as all code paths check `p.[[Value]]` be
 
 The operator `SetReason` encapsulates the process of setting a promise's reason and then propagating this to any derived promises.
 
-1. Assert: neither `p.[[Value]]` nor `p.[[Reason]]` are set.
+1. Assert: `p` has neither `[[Value]]` nor `[[Reason]]` internal data properties.
 1. Set `p.[[Reason]]` to `reason`.
-1. Unset `p.[[Following]]`.
+1. Remove the `[[Following]]` internal data property from `p`.
 1. Call `PropagateToDerived(p)`.
 
 Note: step 3 is not strictly necessary, as all code paths check `p.[[Reason]]` before using `p.[[Following]]`.
@@ -209,7 +209,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 1. Let `promise` be the `this` value.
 1. If `Type(promise)` is not `Object`, throw a `TypeError` exception.
-1. If `promise.[[IsPromise]]` is unset, then throw a `TypeError` exception.
+1. If `promise` does not have an `[[IsPromise]]` internal data property, then throw a `TypeError` exception.
 1. If `promise.[[IsPromise]]` is not `undefined`, then throw a `TypeError` exception.
 1. If not `IsCallable(resolver)`, throw a `TypeError` exception.
 1. Set `promise.[[IsPromise]]` to `true`.

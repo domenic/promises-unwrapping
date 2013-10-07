@@ -86,11 +86,11 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
    1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
 1. Otherwise,
    1. Let `C` be `Get(p, "constructor")`.
-   1. If retrieving the property throws an exception `e`,
+   1. If `C` is an abrupt completion,
       1. Let `q` be a newly-created promise object.
-      1. Call `Reject(q, e)`.
+      1. Call `Reject(q, C.[[value]])`.
    1. Otherwise,
-      1. Let `q` be `GetDeferred(C).[[Promise]]`.
+      1. Let `q` be `GetDeferred(C.[[value]]).[[Promise]]`.
       1. Let `derived` be `{ [[DerivedPromise]]: q, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }`.
       1. Call `UpdateDerivedFromPromise(derived, p)`.
    1. Return `q`.
@@ -117,10 +117,10 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
          1. Let `coercedAlready` be `ThenableCoercions.get(originator.[[Value]])`.
          1. Call `UpdateDerivedFromPromise(derived, coercedAlready)`.
       1. Otherwise,
-         1. Let `then` be `Get(originator.[[Value]], "then")`.
-         1. If retrieving the property throws an exception `e`, call `UpdateDerivedFromReason(derived, e)`.
-         1. Otherwise, if `IsCallable(then)`,
-             1. Let `coerced` be `CoerceThenable(originator.[[Value]], then)`.
+         1. Let `thenResult` be `Get(originator.[[Value]], "then")`.
+         1. If `thenResult` is an abrupt completion, call `UpdateDerivedFromReason(derived, thenResult.[[Value]])`.
+         1. Otherwise, if `IsCallable(thenResult.[[value]])`,
+             1. Let `coerced` be `CoerceThenable(originator.[[Value]], thenResult.[[value]])`.
              1. Call `UpdateDerivedFromPromise(derived, coerced)`.
          1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
    1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
@@ -152,9 +152,9 @@ The operator `UpdateDerivedFromPromise` propagates one promise's state to the de
 The operator `CallHandler` applies a transformation to a value or reason and uses it to update a derived promise.
 
 1. Queue a microtask to do the following:
-   1. Let `v` be `handler.[[Call]](undefined, (argument))`.
-   1. If calling the function throws an exception `e`, call `Reject(derivedPromise, e)`.
-   1. Otherwise, call `Resolve(derivedPromise, v)`.
+   1. Let `result` be `handler.[[Call]](undefined, (argument))`.
+   1. If `result` is an abrupt completion, call `Reject(derivedPromise, result.[[value]])`.
+   1. Otherwise, call `Resolve(derivedPromise, result.[[value]])`.
 
 ### SetValue ( p , value )
 
@@ -188,8 +188,8 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. Let `p` be a newly-created promise object.
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
-1. Call `then.[[Call]](thenable, (resolve, reject))`.
-1. If calling the function throws an exception `e`, call `Reject(p, e)`.
+1. Let `result` be `then.[[Call]](thenable, (resolve, reject))`.
+1. If `result` is an abrupt completion, call `Reject(p, result.[[value]])`.
 1. Call `ThenableCoercions.set(thenable, p)`.
 1. Return `p`.
 
@@ -227,8 +227,8 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Set `promise.[[Derived]]` to a new empty List. 
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
-1. Call `resolver.[[Call]](undefined, (resolve, reject))`.
-1. If calling the function throws an exception `e`, call `Reject(promise, e)`.
+1. Let `result` be `resolver.[[Call]](undefined, (resolve, reject))`.
+1. If `result` is an abrupt completion, call `Reject(promise, e.[[value]])`.
 1. Return `promise`.
 
 ### new Promise ( ... argumentsList )
@@ -275,7 +275,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 1. Let `deferred` be `GetDeferred(this)`.
 1. Repeat
-   1. Let `next` be the result of `IteratorStep(iterable)`.
+   1. Let `next` be `IteratorStep(iterable)`.
    1. If `next` is an abrupt completion,
       1. Call `deferred.[[Reject]].[[Call]](undefined, (next.[[value]]))`.
       1. Return `deferred.[[Promise]]`.
@@ -298,7 +298,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Let `countdown` be `0`.
 1. Let `index` be `0`.
 1. Repeat
-   1. Let `next` be the result of `IteratorStep(iterable)`.
+   1. Let `next` be `IteratorStep(iterable)`.
    1. If `next` is an abrupt completion,
       1. Call `deferred.[[Reject]].[[Call]](undefined, (next.[[value]]))`.
       1. Return `deferred.[[Promise]]`.

@@ -17,7 +17,7 @@ A promise carries several internal data properties:
 - `[[Derived]]`: a List, initially empty, of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` are set.
 - `[[PromiseConstructor]]`: the function object that was used to construct this promise. Used for branding checks in `Promise.cast`.
 
-### The `ThenableCoercions` Weak Map
+### The ThenableCoercions Weak Map
 
 To successfully and consistently assimilate thenable objects into real promises, an implementation must maintain a weak map of thenables to promises. Notably, both the keys and values must be weakly stored. Since this weak map is not directly exposed, it does not need to be a true ECMAScript weak map, with the accompanying prototype and such. However, we refer to it using ECMAScript notation in this spec, i.e.:
 
@@ -35,14 +35,14 @@ Derived promise transforms are Records composed of three named fields:
 - `[[OnFulfilled]]`: the fulfillment handler to be used as a transformation, if the originating promise becomes fulfilled.
 - `[[OnRejected]]`: the rejection handler to be used as a transformation, if the originating promise becomes rejected.
 
-### `IsPromise(x)`
+### IsPromise ( x )
 
 The operator `IsPromise` checks for the promise brand on an object.
 
 1. Return `true` if `IsObject(x)` and `x.[[IsPromise]]` is `true`.
 1. Otherwise, return `false`.
 
-### `ToPromise(C, x)`
+### ToPromise ( C , x )
 
 The operator `ToPromise` coerces its argument to a promise, ensuring it is of the specified constructor `C`, or returns the argument if it is already a promise matching that constructor.
 
@@ -52,7 +52,7 @@ The operator `ToPromise` coerces its argument to a promise, ensuring it is of th
    1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
    1. Return `deferred.[[Promise]]`.
 
-### `Resolve(p, x)`
+### Resolve ( p , x )
 
 The operator `Resolve` resolves a promise with a value.
 
@@ -71,14 +71,14 @@ The operator `Resolve` resolves a promise with a value.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
 1. Otherwise, call `SetValue(p, x)`.
 
-### `Reject(p, r)`
+### Reject ( p , r )
 
 The operator `Reject` rejects a promise with a reason.
 
 1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, return.
 1. Call `SetReason(p, r)`.
 
-### `Then(p, onFulfilled, onRejected)`
+### Then ( p, onFulfilled, onRejected )
 
 The operator `Then` queues up fulfillment and/or rejection handlers on a promise for when it becomes fulfilled or rejected, or schedules them to be called in the next microtask if the promise is already fulfilled or rejected. It returns a derived promise, transformed by the passed handlers.
 
@@ -95,7 +95,7 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
       1. Call `UpdateDerivedFromPromise(derived, p)`.
    1. Return `q`.
 
-### `PropagateToDerived(p)`
+### PropagateToDerived ( p )
 
 The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reason]]` to all of its derived promises.
 
@@ -106,7 +106,7 @@ The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reaso
 
 Note: step 3 is not strictly necessary, as preconditions prevent `p.[[Derived]]` from ever being used again after this point.
 
-### `UpdateDerived(derived, originator)`
+### UpdateDerived ( derived , originator )
 
 The operator `UpdateDerived` propagates a promise's state to a single derived promise using any relevant transforms.
 
@@ -126,28 +126,28 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
    1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
 1. Otherwise, call `UpdateDerivedFromReason(derived, originator.[[Reason]])`.
 
-### `UpdateDerivedFromValue(derived, value)`
+### UpdateDerivedFromValue ( derived , value )
 
 The operator `UpdateDerivedFromValue` propagates a value to a derived promise, using the relevant `onFulfilled` transform if it is callable.
 
 1. If `IsCallable(derived.[[OnFulfilled]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnFulfilled]], value)`.
 1. Otherwise, call `SetValue(derived.[[DerivedPromise]], value)`.
 
-### `UpdateDerivedFromReason(derived, reason)`
+### UpdateDerivedFromReason ( derived , reason )
 
 The operator `UpdateDerivedFromReason` propagates a reason to a derived promise, using the relevant `onRejected` transform if it is callable.
 
 1. If `IsCallable(derived.[[OnRejected]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnRejected]], reason)`.
 1. Otherwise, call `SetReason(derived.[[DerivedPromise]], reason)`.
 
-### `UpdateDerivedFromPromise(derived, promise)`
+### UpdateDerivedFromPromise ( derived , promise )
 
 The operator `UpdateDerivedFromPromise` propagates one promise's state to the derived promise, using the relevant transform if it is callable.
 
 1. If `promise.[[Value]]` or `promise.[[Reason]]` is set, call `UpdateDerived(derived, promise)`.
 1. Otherwise, append `derived` as the last element of `promise.[[Derived]]`.
 
-### `CallHandler(derivedPromise, handler, argument)`
+### CallHandler ( derivedPromise , handler , argument )
 
 The operator `CallHandler` applies a transformation to a value or reason and uses it to update a derived promise.
 
@@ -156,7 +156,7 @@ The operator `CallHandler` applies a transformation to a value or reason and use
    1. If calling the function throws an exception `e`, call `Reject(derivedPromise, e)`.
    1. Otherwise, call `Resolve(derivedPromise, v)`.
 
-### `SetValue(p, value)`
+### SetValue ( p , value )
 
 The operator `SetValue` encapsulates the process of setting a promise's value and then propagating this to any derived promises.
 
@@ -167,7 +167,7 @@ The operator `SetValue` encapsulates the process of setting a promise's value an
 
 Note: step 3 is not strictly necessary, as all code paths check `p.[[Value]]` before using `p.[[Following]]`.
 
-### `SetReason(p, reason)`
+### SetReason ( p , reason )
 
 The operator `SetReason` encapsulates the process of setting a promise's reason and then propagating this to any derived promises.
 
@@ -178,7 +178,7 @@ The operator `SetReason` encapsulates the process of setting a promise's reason 
 
 Note: step 3 is not strictly necessary, as all code paths check `p.[[Reason]]` before using `p.[[Following]]`.
 
-### `CoerceThenable(thenable, then)`
+### CoerceThenable ( thenable , then )
 
 The operator `CoerceThenable` takes a "thenable" object whose `then` method has been extracted and creates a promise from it. It memoizes its results so as to avoid getting inconsistent answers in the face of ill-behaved thenables; the memoized results are later checked by `UpdateDerived`.
 
@@ -193,7 +193,7 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. Call `ThenableCoercions.set(thenable, p)`.
 1. Return `p`.
 
-### `GetDeferred(C)`
+### GetDeferred ( C )
 
 The operator `GetDeferred` takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the `Promise` constructor. We use it to generalize static methods of `Promise` to any subclass.
 
@@ -208,13 +208,13 @@ The operator `GetDeferred` takes a potential constructor function, and attempts 
    1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
 1. Return the record `{ [[Promise]]: promise, [[Resolve]]: resolve, [[Reject]]: reject }`.
 
-## The `Promise` constructor
+## The Promise Constructor
 
 The `Promise` constructor is the `%Promise%` intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its `this` value with the internal state necessary to support the `Promise.prototype` internal methods.
 
 The `Promise` constructor is designed to be subclassable. It may be used as the value of an `extends` clause of a class declaration. Subclass constructors that intended to inherit the specified `Promise` behavior must include a `super` call to the `Promise` constructor to initialize the `[[IsPromise]]` state of subclass instances.
 
-### `Promise(resolver)`
+### Promise ( resolver )
 
 When `Promise` is called with the argument `resolver`, the following steps are taken. If being called to initialize an uninitialized promise object created by `Promise[@@create]`, `resolver` is assumed to be a function and is given the two arguments `resolve` and `reject` which will perform their eponymous operations on the promise.
 
@@ -231,15 +231,15 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. If calling the function throws an exception `e`, call `Reject(promise, e)`.
 1. Return `promise`.
 
-### `new Promise(...argumentsList)`
+### new Promise ( ... argumentsList )
 
 `Promise` called as part of a `new` expression with argument list `argumentList` simply delegates to the usual ECMAScript spec mechanisms for creating new objects, triggering the initialization subsequence of the above `Promise(resolver)` procedure.
 
 1. Return `OrdinaryConstruct(Promise, argumentsList)`.
 
-## Properties of the `Promise` constructor
+## Properties of the Promise Constructor
 
-### `Promise[@@create]()`
+### Promise \[ @@create \] ( )
 
 `Promise[@@create]()` allocates a new uninitialized promise object, installing the unforgable brand `[[IsPromise]]` on the promise.
 
@@ -247,7 +247,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Set `p.[[PromiseConstructor]]` to `this`.
 1. Return `p`.
 
-### `Promise.resolve(x)`
+### Promise.resolve ( x )
 
 `Promise.resolve` returns a new promise resolved with the passed argument.
 
@@ -255,7 +255,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
 1. Return `deferred.[[Promise]]`.
 
-### `Promise.reject(r)`
+### Promise.reject ( r )
 
 `Promise.reject` returns a new promise rejected with the passed argument.
 
@@ -263,13 +263,13 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Call `deferred.[[Reject]].[[Call]](undefined, (r))`.
 1. Return `deferred.[[Promise]]`.
 
-### `Promise.cast(x)`
+### Promise.cast ( x )
 
 `Promise.cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
 1. Return `ToPromise(this, x)`.
 
-### `Promise.race(iterable)`
+### Promise.race ( iterable )
 
 `Promise.race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises before running this algorithm.
 
@@ -279,7 +279,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
    1. Call `Then(nextPromise, deferred.[[Resolve]], deferred.[[Reject]])`.
 1. Return `deferred.[[Promise]]`.
 
-### `Promise.all(iterable)`
+### Promise.all ( iterable )
 
 `Promise.all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises before running this algorithm.
 
@@ -301,7 +301,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
    1. Call `deferred.[[Resolve]].[[Call]](undefined, (values))`.
 1. Return `deferred.[[Promise]]`.
 
-## Properties of the `Promise` Prototype Object
+## Properties of the Promise Prototype Object
 
 The `Promise` prototype object is itself an ordinary object. It is not a `Promise` instance and does not have a `[[IsPromise]]` internal data property.
 
@@ -311,15 +311,15 @@ The methods of the `Promise` prototype object are not generic and the `this` val
 
 The intrinsic object `%PromisePrototype%` is the initial value of the `"prototype"` data property of the intrinsic `%Promise%`.
 
-### `Promise.prototype.constructor`
+### Promise.prototype.constructor
 
 The initial value of `Promise.prototype.constructor` is the built-in `Promise` constructor.
 
-### `Promise.prototype.then(onFulfilled, onRejected)`
+### Promise.prototype.then ( onFulfilled , onRejected )
 
 1. If `IsPromise(this)` is `false`, throw a `TypeError`.
 1. Otherwise, return `Then(this, onFulfilled, onRejected)`.
 
-### `Promise.prototype.catch(onRejected)`
+### Promise.prototype.catch ( onRejected )
 
 1. Return `Invoke(this, "then", (undefined, onRejected))`.

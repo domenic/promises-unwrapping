@@ -107,7 +107,7 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
          1. Call `UpdateDerivedFromPromise(derived, coercedAlready)`.
       1. Otherwise,
          1. Let `thenResult` be `Get(originator.[[Value]], "then")`.
-         1. If `thenResult` is an abrupt completion, call `UpdateDerivedFromReason(derived, thenResult.[[Value]])`.
+         1. If `thenResult` is an abrupt completion, call `UpdateDerivedFromReason(derived, thenResult.[[value]])`.
          1. Otherwise, if `IsCallable(thenResult.[[value]])`,
              1. Let `coerced` be `CoerceThenable(originator.[[Value]], thenResult.[[value]])`.
              1. Call `UpdateDerivedFromPromise(derived, coerced)`.

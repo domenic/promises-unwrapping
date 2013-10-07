@@ -49,7 +49,7 @@ The operator `ToPromise` coerces its argument to a promise, ensuring it is of th
 1. If `IsPromise(x)` and `SameValue(x.[[PromiseConstructor]], C)` is `true`, return `x`.
 1. Otherwise,
    1. Let `deferred` be `GetDeferred(C)`.
-   1. Call `deferred.[[Resolve]](x)`.
+   1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
    1. Return `deferred.[[Promise]]`.
 
 ### `Resolve(p, x)`
@@ -251,7 +251,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 `Promise.resolve` returns a new promise resolved with the passed argument.
 
 1. Let `deferred` be `GetDeferred(this)`.
-1. Call `deferred.[[Resolve]](x)`.
+1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
 1. Return `deferred.[[Promise]]`.
 
 ### `Promise.reject(r)`
@@ -259,7 +259,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 `Promise.reject` returns a new promise rejected with the passed argument.
 
 1. Let `deferred` be `GetDeferred(this)`.
-1. Call `deferred.[[Reject]](r)`.
+1. Call `deferred.[[Reject]].[[Call]](undefined, (r))`.
 1. Return `deferred.[[Promise]]`.
 
 ### `Promise.cast(x)`
@@ -292,12 +292,12 @@ When `Promise` is called with the argument `resolver`, the following steps are t
    1. Let `onFulfilled(v)` be an ECMAScript function that:
       1. Calls `values.[[DefineOwnProperty]](currentIndex, { [[Value]]: v, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }`.
       1. Lets `countdown` be `countdown - 1`.
-      1. If `countdown` is `0`, calls `deferred.[[Resolve]](values)`.
+      1. If `countdown` is `0`, calls `deferred.[[Resolve]].[[Call]](undefined, (values))`.
    1. Call `Then(nextPromise, onFulfilled, deferred.[[Reject]])`.
    1. Let `index` be `index + 1`.
    1. Let `countdown` be `countdown + 1`.
 1. If `index` is `0`,
-   1. Call `deferred.[[Resolve]](values)`.
+   1. Call `deferred.[[Resolve]].[[Call]](undefined, (values))`.
 1. Return `deferred.[[Promise]]`.
 
 ## Properties of the `Promise` Prototype Object

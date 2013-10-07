@@ -6,17 +6,6 @@ It is meant to succeed the current [DOM Promises](http://dom.spec.whatwg.org/#pr
 
 ## Overview of Promise Objects and Definitions of Abstract Operations
 
-### Promise Object Internal Data Properties
-
-A promise carries several internal data properties:
-
-- `[[IsPromise]]`: all promises are branded with this property, and no other objects are. Uninitialized promises have it set to `undefined`, whereas initialized ones have it set to `true`.
-- `[[Following]]`: either unset, or a promise that `p` is following.
-- `[[Value]]`: either unset, or promise's direct fulfillment value (derived by resolving it with a non-thenable).
-- `[[Reason]]`: either unset, or a promise's direct rejection reason (derived by rejecting it).
-- `[[Derived]]`: a List, initially empty, of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` are set.
-- `[[PromiseConstructor]]`: the function object that was used to construct this promise. Used for branding checks in `Promise.cast`.
-
 ### The ThenableCoercions Weak Map
 
 To successfully and consistently assimilate thenable objects into real promises, an implementation must maintain a weak map of thenables to promises. Notably, both the keys and values must be weakly stored. Since this weak map is not directly exposed, it does not need to be a true ECMAScript weak map, with the accompanying prototype and such. However, we refer to it using ECMAScript notation in this spec, i.e.:
@@ -343,3 +332,43 @@ The initial value of `Promise.prototype.constructor` is the built-in `Promise` c
 ### Promise.prototype.catch ( onRejected )
 
 1. Return `Invoke(this, "then", (undefined, onRejected))`.
+
+## Properties of Promise Instances
+
+Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, `%PromisePrototype%`). Promise instances can have the internal properties described in this table, with some being present upon creation and others only sometimes present.
+
+<table>
+    <caption>Internal Data Properties of Promise Instances</caption>
+    <thead>
+        <tr>
+            <th>Internal Data Property Name</th>
+            <th>Description</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>[[IsPromise]]</td>
+            <td>A branding property given to all promises at allocation-time. Uninitialized promises have it set to `undefined`, whereas initialized ones have it set to `true`.</td>
+        </tr>
+        <tr>
+            <td>[[PromiseConstructor]]</td>
+            <td>The function object that was used to construct this promise. Checked by `Promise.cast`.</td>
+        </tr>
+        <tr>
+            <td>[[Derived]]</td>
+            <td>A List of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` become present.</td>
+        </tr>
+        <tr>
+            <td>[[Following]]</td>
+            <td>If present, another promise that this one is following.</td>
+        </tr>
+        <tr>
+            <td>[[Value]]</td>
+            <td>If present, the promise's direct fulfillment value (from resolving it with a non-thenable).</td>
+        </tr>
+        <tr>
+            <td>[[Reason]]</td>
+            <td>If present, the promise's direct rejection reason (from rejecting it).</td>
+        </tr>
+    </tbody>
+</table>

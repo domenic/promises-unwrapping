@@ -56,7 +56,7 @@ The operator `ToPromise` coerces its argument to a promise, ensuring it is of th
 
 The operator `Resolve` resolves a promise with a value.
 
-1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, terminate these steps.
+1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, return.
 1. If `IsPromise(x)`,
    1. If `SameValue(p, x)`,
       1. Let `selfResolutionError` be a newly-created `TypeError` object.
@@ -75,7 +75,7 @@ The operator `Resolve` resolves a promise with a value.
 
 The operator `Reject` rejects a promise with a reason.
 
-1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, terminate these steps.
+1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, return.
 1. Call `SetReason(p, r)`.
 
 ### `Then(p, onFulfilled, onRejected)`

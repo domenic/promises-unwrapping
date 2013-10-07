@@ -46,7 +46,7 @@ The operator `IsPromise` checks for the promise brand on an object.
 
 The operator `ToPromise` coerces its argument to a promise, ensuring it is of the specified constructor `C`, or returns the argument if it is already a promise matching that constructor.
 
-1. If `IsPromise(x)` and `SameValue(x.[[PromiseConstructor]], C)` is `true`, return `x`.
+1. If `IsPromise(x)` is `true` and `SameValue(x.[[PromiseConstructor]], C)` is `true`, return `x`.
 1. Otherwise,
    1. Let `deferred` be `GetDeferred(C)`.
    1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
@@ -57,7 +57,7 @@ The operator `ToPromise` coerces its argument to a promise, ensuring it is of th
 The operator `Resolve` resolves a promise with a value.
 
 1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, return.
-1. If `IsPromise(x)`,
+1. If `IsPromise(x)` is `true`,
    1. If `SameValue(p, x)`,
       1. Let `selfResolutionError` be a newly-created `TypeError` object.
       1. Call `SetReason(p, selfResolutionError)`.

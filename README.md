@@ -16,7 +16,7 @@ To successfully and consistently assimilate thenable objects into real promises,
 
 ### The Derived Promise Transform Specification Type
 
-The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's `[[Derived]]` internal data property until the promise's `[[Value]]` or `[[Reason]]` are present, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
+The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's `[[Derived]]` internal data property until one of `[[HasValue]]` or `[[HasReason]]` becomes `true`, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
 
 Derived promise transforms are Records composed of three named fields:
 
@@ -30,6 +30,15 @@ The operator `IsPromise` checks for the promise brand on an object.
 
 1. Return `true` if `IsObject(x)` and `x.[[IsPromise]]` is `true`.
 1. Otherwise, return `false`.
+
+### IsResolved ( p )
+
+The operator `IsResolved` checks for whether a promise's fate is resolved.
+
+1. If `p.[[Following]]` is not `undefined`, return `true`.
+1. If `p.[[HasValue]]` is `true`, return `true`.
+1. If `p.[[HasReason]]` is `true`, return `true`.
+1. Return `false`.
 
 ### ToPromise ( C , x )
 
@@ -45,16 +54,16 @@ The operator `ToPromise` coerces its argument to a promise, ensuring it is of th
 
 The operator `Resolve` resolves a promise with a value.
 
-1. If `p` has a `[[Following]]`, `[[Value]]`, or `[[Reason]]` internal data property, return.
+1. If `IsResolved(p)`, return.
 1. If `IsPromise(x)` is `true`,
    1. If `SameValue(p, x)`,
       1. Let `selfResolutionError` be a newly-created `TypeError` object.
       1. Call `SetReason(p, selfResolutionError)`.
-   1. Otherwise, if `x` has a `[[Following]]` internal data property,
+   1. Otherwise, if `x.[[Following]]` is not `undefined`,
       1. Set `p.[[Following]]` to `x.[[Following]]`.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Following]].[[Derived]]`.
-   1. Otherwise, if `x` has a `[[Value]]` internal data property, call `SetValue(p, x.[[Value]])`.
-   1. Otherwise, if `x` has a `[[Reason]]` internal data property, call `SetReason(p, x.[[Reason]])`.
+   1. Otherwise, if `x.[[HasValue]]` is `true`, call `SetValue(p, x.[[Value]])`.
+   1. Otherwise, if `x.[[HasReason]]` is `true`, call `SetReason(p, x.[[Reason]])`.
    1. Otherwise,
       1. Set `p.[[Following]]` to `x`.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
@@ -64,14 +73,14 @@ The operator `Resolve` resolves a promise with a value.
 
 The operator `Reject` rejects a promise with a reason.
 
-1. If `p.[[Following]]`, `p.[[Value]]`, or `p.[[Reason]]` are set, return.
+1. If `IsResolved(p)`, return.
 1. Call `SetReason(p, r)`.
 
 ### Then ( p, onFulfilled, onRejected )
 
 The operator `Then` queues up fulfillment and/or rejection handlers on a promise for when it becomes fulfilled or rejected, or schedules them to be called in the next microtask if the promise is already fulfilled or rejected. It returns a derived promise, transformed by the passed handlers.
 
-1. If `p` has a `[[Following]]` internal data property,
+1. If `p.[[Following]]` is not `undefined`,
    1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
 1. Otherwise,
    1. Let `C` be `Get(p, "constructor")`.
@@ -88,7 +97,7 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
 
 The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reason]]` to all of its derived promises.
 
-1. Assert: `p` has either a `[[Value]]` or `[[Reason]]` internal data property, but not both.
+1. Assert: exactly one of `p.[[HasValue]]` and `p.[[HasReason]]` is `true`.
 1. Repeat for each `derived` that is an element of `p.[[Derived]]`, in original insertion order
    1. Call `UpdateDerived(derived, p)`.
 1. Set `p.[[Derived]]` to a new empty List.
@@ -99,8 +108,8 @@ Note: step 3 is not strictly necessary, as preconditions prevent `p.[[Derived]]`
 
 The operator `UpdateDerived` propagates a promise's state to a single derived promise using any relevant transforms.
 
-1. Assert: `originator` has either a `[[Value]]` or `[[Reason]]` internal data property, but not both.
-1. If `originator` has a `[[Value]]` internal data property,
+1. Assert: exactly one of `originator.[[HasValue]]` and `originator.[[HasReason]]` is `true`.
+1. If `originator.[[HasValue]]` is `true`,
    1. If `IsObject(originator.[[Value]])`, queue a microtask to run the following:
       1. If `ThenableCoercions.has(originator.[[Value]])`,
          1. Let `coercedAlready` be `ThenableCoercions.get(originator.[[Value]])`.
@@ -133,7 +142,7 @@ The operator `UpdateDerivedFromReason` propagates a reason to a derived promise,
 
 The operator `UpdateDerivedFromPromise` propagates one promise's state to the derived promise, using the relevant transform if it is callable.
 
-1. If `promise` has `[[Value]]` or `[[Reason]]` internal data properties, call `UpdateDerived(derived, promise)`.
+1. If `promise.[[HasValue]]` is `true` or `promise.[[HasReason]]` is `true`, call `UpdateDerived(derived, promise)`.
 1. Otherwise, append `derived` as the last element of `promise.[[Derived]]`.
 
 ### CallHandler ( derivedPromise , handler , argument )
@@ -149,23 +158,25 @@ The operator `CallHandler` applies a transformation to a value or reason and use
 
 The operator `SetValue` encapsulates the process of setting a promise's value and then propagating this to any derived promises.
 
-1. Assert: `p` has neither `[[Value]]` nor `[[Reason]]` internal data properties.
+1. Assert: `p.[[HasValue]]` is `false` and `p.[[HasReason]]` is `false`.
 1. Set `p.[[Value]]` to `value`.
-1. Remove the `[[Following]]` internal data property from `p`.
+1. Set `p.[[HasValue]]` to `true`.
+1. Set `p.[[Following]]` to `undefined`.
 1. Call `PropagateToDerived(p)`.
 
-Note: step 3 is not strictly necessary, as all code paths check `p.[[Value]]` before using `p.[[Following]]`.
+Note: step 4 is not strictly necessary, as all code paths check `p.[[HasValue]]` before using `p.[[Following]]`.
 
 ### SetReason ( p , reason )
 
 The operator `SetReason` encapsulates the process of setting a promise's reason and then propagating this to any derived promises.
 
-1. Assert: `p` has neither `[[Value]]` nor `[[Reason]]` internal data properties.
+1. Assert: `p.[[HasValue]]` is `false` and `p.[[HasReason]]` is `false`.
 1. Set `p.[[Reason]]` to `reason`.
-1. Remove the `[[Following]]` internal data property from `p`.
+1. Set `p.[[HasReason]]` to `true`.
+1. Set `p.[[Following]]` to `undefined`.
 1. Call `PropagateToDerived(p)`.
 
-Note: step 3 is not strictly necessary, as all code paths check `p.[[Reason]]` before using `p.[[Following]]`.
+Note: step 4 is not strictly necessary, as all code paths check `p.[[HasReason]]` before using `p.[[Following]]`.
 
 ### CoerceThenable ( thenable , then )
 
@@ -208,12 +219,14 @@ The `Promise` constructor is designed to be subclassable. It may be used as the 
 When `Promise` is called with the argument `resolver`, the following steps are taken. If being called to initialize an uninitialized promise object created by `Promise[@@create]`, `resolver` is assumed to be a function and is given the two arguments `resolve` and `reject` which will perform their eponymous operations on the promise.
 
 1. Let `promise` be the `this` value.
-1. If `Type(promise)` is not `Object`, throw a `TypeError` exception.
+1. If `Type(promise)` is not `Object`, then throw a `TypeError` exception.
 1. If `promise` does not have an `[[IsPromise]]` internal data property, then throw a `TypeError` exception.
 1. If `promise.[[IsPromise]]` is not `undefined`, then throw a `TypeError` exception.
-1. If not `IsCallable(resolver)`, throw a `TypeError` exception.
+1. If not `IsCallable(resolver)`, then throw a `TypeError` exception.
 1. Set `promise.[[IsPromise]]` to `true`.
-1. Set `promise.[[Derived]]` to a new empty List. 
+1. Set `promise.[[Derived]]` to a new empty List.
+1. Set `promise.[[HasValue]]` to `false`.
+1. Set `promise.[[HasReason]]` to `false`.
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
 1. Let `result` be `resolver.[[Call]](undefined, (resolve, reject))`.
@@ -230,9 +243,9 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 ### Promise \[ @@create \] ( )
 
-`Promise[@@create]()` allocates a new uninitialized promise object, installing the unforgable brand `[[IsPromise]]` on the promise.
+`Promise[@@create]()` allocates a new uninitialized promise object, installing its internal data properties and setting the `[[PromiseConstructor]]` brand.
 
-1. Let `p` be `OrdinaryCreateFromConstructor(this, "%PromisePrototype%", ([[IsPromise]]))`.
+1. Let `p` be `OrdinaryCreateFromConstructor(this, "%PromisePrototype%", ([[IsPromise]], [[PromiseConstructor]], [[Derived]], [[Following]], [[Value]], [[HasValue]], [[Reason]], [[HasReason]]))`.
 1. Set `p.[[PromiseConstructor]]` to `this`.
 1. Return `p`.
 
@@ -312,7 +325,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 
 ## Properties of the Promise Prototype Object
 
-The `Promise` prototype object is itself an ordinary object. It is not a `Promise` instance and does not have a `[[IsPromise]]` internal data property.
+The `Promise` prototype object is itself an ordinary object. It is not a `Promise` instance and does not have any of the promise instances' internal data properties, such as `[[IsPromise]]`.
 
 The value of the `[[Prototype]]` internal data property of the `Promise` prototype object is the standard built-in `Object` prototype object.
 
@@ -335,7 +348,7 @@ The initial value of `Promise.prototype.constructor` is the built-in `Promise` c
 
 ## Properties of Promise Instances
 
-Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, `%PromisePrototype%`). Promise instances can have the internal properties described in this table, with some being present upon creation and others only sometimes present.
+Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, `%PromisePrototype%`). Promise instances are initially created with the internal properties described in this table.
 
 <table>
     <caption>Internal Data Properties of Promise Instances</caption>
@@ -356,19 +369,27 @@ Promise instances are ordinary objects that inherit properties from the Promise 
         </tr>
         <tr>
             <td>[[Derived]]</td>
-            <td>A List of derived promise transforms that need to be processed once the promise's `[[Value]]` or `[[Reason]]` become present.</td>
+            <td>A List of derived promise transforms that need to be processed once the promise's `[[HasValue]]` or `[[HasReason]]` become `true`.</td>
         </tr>
         <tr>
             <td>[[Following]]</td>
-            <td>If present, another promise that this one is following.</td>
+            <td>Another promise that this one is following, or `undefined`.</td>
         </tr>
         <tr>
             <td>[[Value]]</td>
-            <td>If present, the promise's direct fulfillment value (from resolving it with a non-thenable).</td>
+            <td>The promise's direct fulfillment value (from resolving it with a non-thenable). Only meaningful if `[[HasValue]]` is `true`.</td>
+        </tr>
+        <tr>
+            <td>[[HasValue]]</td>
+            <td>Whether the promise has a direct fulfillment value or not. This allows distinguishing between no direct fulfillment value, and one of `undefined`.</td>
         </tr>
         <tr>
             <td>[[Reason]]</td>
-            <td>If present, the promise's direct rejection reason (from rejecting it).</td>
+            <td>The promise's direct rejection reason (from rejecting it). Only meaningful if `[[HasReason]]` is `true`.</td>
+        </tr>
+        <tr>
+            <td>[[HasReason]]</td>
+            <td>Whether the promise has a direct rejection reason or not. This allows distinguishing between no direct rejection reason, and one of `undefined`.</td>
         </tr>
     </tbody>
 </table>

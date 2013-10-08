@@ -230,7 +230,7 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
 1. Let `result` be `resolver.[[Call]](undefined, (resolve, reject))`.
-1. If `result` is an abrupt completion, call `Reject(promise, e.[[value]])`.
+1. If `result` is an abrupt completion, call `Reject(promise, result.[[value]])`.
 1. Return `promise`.
 
 ### new Promise ( ... argumentsList )

@@ -257,6 +257,8 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
 1. Return `deferred.[[Promise]]`.
 
+Note: The `resolve` function is an intentionally generic factory method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+
 ### Promise.reject ( r )
 
 `Promise.reject` returns a new promise rejected with the passed argument.
@@ -265,11 +267,15 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Call `deferred.[[Reject]].[[Call]](undefined, (r))`.
 1. Return `deferred.[[Promise]]`.
 
+Note: The `reject` function is an intentionally generic factory method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+
 ### Promise.cast ( x )
 
 `Promise.cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
 1. Return `ToPromise(this, x)`.
+
+Note: The `cast` function is an intentionally generic utility method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ### Promise.race ( iterable )
 
@@ -290,6 +296,8 @@ When `Promise` is called with the argument `resolver`, the following steps are t
       1. Otherwise,
          1. Let `nextPromise` be `ToPromise(this, nextValue)`.
          1. Call `Then(nextPromise, deferred.[[Resolve]], deferred.[[Reject]])`.
+
+Note: The `race` function is an intentionally generic utility method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ### Promise.all ( iterable )
 
@@ -323,13 +331,13 @@ When `Promise` is called with the argument `resolver`, the following steps are t
          1. Set `index` to `index + 1`.
          1. Set `countdown` to `countdown + 1`.
 
+Note: The `all` function is an intentionally generic utility method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+
 ## Properties of the Promise Prototype Object
 
 The `Promise` prototype object is itself an ordinary object. It is not a `Promise` instance and does not have any of the promise instances' internal data properties, such as `[[IsPromise]]`.
 
 The value of the `[[Prototype]]` internal data property of the `Promise` prototype object is the standard built-in `Object` prototype object.
-
-The methods of the `Promise` prototype object are not generic and the `this` value passed to them must be an object that has a `[[IsPromise]]` internal data property that has been initialized to `true`.
 
 The intrinsic object `%PromisePrototype%` is the initial value of the `"prototype"` data property of the intrinsic `%Promise%`.
 
@@ -342,9 +350,13 @@ The initial value of `Promise.prototype.constructor` is the built-in `Promise` c
 1. If `IsPromise(this)` is `false`, throw a `TypeError`.
 1. Otherwise, return `Then(this, onFulfilled, onRejected)`.
 
+Note: The `then` function is not generic. If the `this` value is not an object with a `[[IsPromise]]` internal data property initialized to `true`, a `TypeError` exception is immediately thrown when it is called.
+
 ### Promise.prototype.catch ( onRejected )
 
 1. Return `Invoke(this, "then", (undefined, onRejected))`.
+
+Note: The `catch` function is intentionally generic; it does not require that its `this` value be a Promise object. Therefore, it can be transferred to other kinds of objects for use as a method.
 
 ## Properties of Promise Instances
 

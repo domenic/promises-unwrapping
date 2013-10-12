@@ -28,7 +28,7 @@ Derived promise transforms are Records composed of three named fields:
 
 The operator `IsPromise` checks for the promise brand on an object.
 
-1. Return `true` if `IsObject(x)` and `x.[[IsPromise]]` is `true`.
+1. Return `true` if `Type(x)` is `Object` and `x.[[IsPromise]]` is `true`.
 1. Otherwise, return `false`.
 
 ### IsResolved ( p )
@@ -110,7 +110,7 @@ The operator `UpdateDerived` propagates a promise's state to a single derived pr
 
 1. Assert: exactly one of `originator.[[HasValue]]` and `originator.[[HasReason]]` is `true`.
 1. If `originator.[[HasValue]]` is `true`,
-   1. If `IsObject(originator.[[Value]])`, queue a microtask to run the following:
+   1. If `Type(originator.[[Value]])` is `Object`, queue a microtask to run the following:
       1. If `ThenableCoercions.has(originator.[[Value]])`,
          1. Let `coercedAlready` be `ThenableCoercions.get(originator.[[Value]])`.
          1. Call `UpdateDerivedFromPromise(derived, coercedAlready)`.
@@ -182,7 +182,7 @@ Note: step 4 is not strictly necessary, as all code paths check `p.[[HasReason]]
 
 The operator `CoerceThenable` takes a "thenable" object whose `then` method has been extracted and creates a promise from it. It memoizes its results so as to avoid getting inconsistent answers in the face of ill-behaved thenables; the memoized results are later checked by `UpdateDerived`.
 
-1. Assert: `IsObject(thenable)`.
+1. Assert: `Type(thenable)` is `Object`.
 1. Assert: `IsCallable(then)`.
 1. Assert: the execution context stack is empty.
 1. Let `p` be a newly-created promise object.

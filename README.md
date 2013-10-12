@@ -36,6 +36,17 @@ Deferreds are Records composed of three named fields:
 
 ## Abstract Operations for Promise Objects
 
+### GetDeferred ( C )
+
+The absract operation GetDeferred takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
+
+1. If IsConstructor(_C_) is **false**, throw a **TypeError**.
+1. Let `resolver(passedResolve, passedReject)` be an ECMAScript function that lets _resolve_ be `passedResolve` and _reject_ be `passedReject`.
+1. Let _promise_ be the result of calling the [[Construct]] internal method of _C_ with an argument list containing the single item _resolver_.
+1. ReturnIfAbrupt(_promise_).
+1. If IsPromise(_promise_) is **false**, throw a **TypeError**.
+1. Return the Deferred { [[Promise]]: _promise_, [[Resolve]]: _resolve_, [[Reject]]: _reject_ }.
+
 ### IsPromise ( x )
 
 The abstract operation IsPromise checks for the promise brand on an object.
@@ -210,21 +221,6 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. If `result` is an abrupt completion, call `Reject(p, result.[[value]])`.
 1. Call `ThenableCoercions.set(thenable, p)`.
 1. Return `p`.
-
-### GetDeferred ( C )
-
-The operator `GetDeferred` takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the `Promise` constructor. We use it to generalize static methods of `Promise` to any subclass.
-
-1. If `IsConstructor(C)`,
-   1. Let `resolver` be an ECMAScript function that:
-      1. Lets `resolve` be the value `resolver` is passed as its first argument.
-      1. Lets `reject` be the value `resolver` is passed as its second argument.
-   1. Let `promise` be `C.[[Construct]]((resolver))`.
-1. Otherwise,
-   1. Let `promise` be the result of calling PromiseCreate().
-   1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
-   1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
-1. Return the record `{ [[Promise]]: promise, [[Resolve]]: resolve, [[Reject]]: reject }`.
 
 ## The Promise Constructor
 

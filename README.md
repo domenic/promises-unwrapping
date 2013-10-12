@@ -249,6 +249,8 @@ When `Promise` is called with the argument `resolver`, the following steps are t
 1. Set `p.[[PromiseConstructor]]` to `this`.
 1. Return `p`.
 
+This property has the attributes `{ [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }`.
+
 ### Promise.resolve ( x )
 
 `Promise.resolve` returns a new promise resolved with the passed argument.

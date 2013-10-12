@@ -12,7 +12,9 @@ To successfully and consistently assimilate thenable objects into real promises,
 - `ThenableCoercions.get(thenable)`
 - `ThenableCoercions.set(thenable, promise)`
 
-## The Derived Promise Transform Specification Type
+## Record Types for Promise Objects
+
+### The Derived Promise Transform Specification Type
 
 The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's [[Derived]] internal data property until one of [[HasValue]] or [[HasReason]] becomes **true**, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
 
@@ -21,6 +23,16 @@ Derived promise transforms are Records composed of three named fields:
 - [[DerivedPromise]]: the derived promise in need of updating.
 - [[OnFulfilled]]: the fulfillment handler to be used as a transformation, if the originating promise becomes fulfilled.
 - [[OnRejected]]: the rejection handler to be used as a transformation, if the originating promise becomes rejected.
+
+### The Deferred Specification Type
+
+The Deffered type is used to encapsulate newly-created promise objects along with functions that resolve or reject them. Deferred objects are derived by the GetDeferred abstract operation from either the Promise constructor itself or from a constructor that subclasses the Promise constructor. This mechanism allows promise subclasses to install custom resolve and reject behavior by creating constructors that pass appropriate functions to their resolver argument.
+
+Deferreds are Records composed of three named fields:
+
+- [[Promise]]: the newly-created promise object
+- [[Resolve]]: a function that is presumed to resolve the given promise object
+- [[Reject]]: a function that is presumed to reject the given promise object
 
 ## Abstract Operations for Promise Objects
 
@@ -45,11 +57,16 @@ The abstract operation IsResolved checks for whether a promise's fate is resolve
 
 The abstract operation ToPromise coerces its argument to a promise, ensuring it is of the specified constructor _C_, or returns the argument if it is already a promise matching that constructor.
 
-1. If `IsPromise(x)` is `true` and `SameValue(x.[[PromiseConstructor]], C)` is `true`, return `x`.
-1. Otherwise,
-   1. Let `deferred` be `GetDeferred(C)`.
-   1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
-   1. Return `deferred.[[Promise]]`.
+1. If IsPromise(_x_) is **true**,
+   1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal data property.
+   1. If SameValue(_constructor_, _C_) is **true**, return _x_.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _resolve_ be _deferred_.[[Resolve]].
+1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
+1. Let _result_ be the result of calling the [[Call]] internal method of _deferred.[[Resolve]]_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
+1. ReturnIfAbrupt(_result_).
+1. Return _deferred_.[[Promise]].
 
 ### Resolve ( p , x )
 

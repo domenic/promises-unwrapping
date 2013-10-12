@@ -4,9 +4,7 @@ This repository is meant to fully flesh out a subset of the "AP2" promise consen
 
 It is meant to succeed the current [DOM Promises](http://dom.spec.whatwg.org/#promises) spec, and fixes a number of bugs in that spec while also changing some of the exposed APIs and behavior to make it more forward-compatible with the full AP2 consensus.
 
-## Overview of Promise Objects and Definitions of Abstract Operations
-
-### The ThenableCoercions Weak Map
+## The ThenableCoercions Weak Map
 
 To successfully and consistently assimilate thenable objects into real promises, an implementation must maintain a weak map of thenables to promises. Notably, both the keys and values must be weakly stored. Since this weak map is not directly exposed, it does not need to be a true ECMAScript weak map, with the accompanying prototype and such. However, we refer to it using ECMAScript notation in this spec, i.e.:
 
@@ -14,35 +12,38 @@ To successfully and consistently assimilate thenable objects into real promises,
 - `ThenableCoercions.get(thenable)`
 - `ThenableCoercions.set(thenable, promise)`
 
-### The Derived Promise Transform Specification Type
+## The Derived Promise Transform Specification Type
 
-The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's `[[Derived]]` internal data property until one of `[[HasValue]]` or `[[HasReason]]` becomes `true`, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
+The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's [[Derived]] internal data property until one of [[HasValue]] or [[HasReason]] becomes **true**, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
 
 Derived promise transforms are Records composed of three named fields:
 
-- `[[DerivedPromise]]`: the derived promise in need of updating.
-- `[[OnFulfilled]]`: the fulfillment handler to be used as a transformation, if the originating promise becomes fulfilled.
-- `[[OnRejected]]`: the rejection handler to be used as a transformation, if the originating promise becomes rejected.
+- [[DerivedPromise]]: the derived promise in need of updating.
+- [[OnFulfilled]]: the fulfillment handler to be used as a transformation, if the originating promise becomes fulfilled.
+- [[OnRejected]]: the rejection handler to be used as a transformation, if the originating promise becomes rejected.
+
+## Abstract Operations for Promise Objects
 
 ### IsPromise ( x )
 
-The operator `IsPromise` checks for the promise brand on an object.
+The abstract operation IsPromise checks for the promise brand on an object.
 
-1. Return `true` if `Type(x)` is `Object` and `x.[[IsPromise]]` is `true`.
-1. Otherwise, return `false`.
+1. If Type(_x_) is not Object, return **false**.
+1. If _x_ does not have an [[IsPromise]] internal data property, return **false**.
+1. If the value of _x_'s [[IsPromise]] internal data property is **true**, return **true**; otherwise, return **false**.
 
 ### IsResolved ( p )
 
-The operator `IsResolved` checks for whether a promise's fate is resolved.
+The abstract operation IsResolved checks for whether a promise's fate is resolved.
 
-1. If `p.[[Following]]` is not `undefined`, return `true`.
-1. If `p.[[HasValue]]` is `true`, return `true`.
-1. If `p.[[HasReason]]` is `true`, return `true`.
-1. Return `false`.
+1. If _p_'s internal data property [[Following]] is not **undefined**, return **true**.
+1. If _p_'s internal data property [[HasValue]] is **true**, return **true**.
+1. If _p_'s internal data property [[HasReason]] is **true**, return **true**.
+1. Return **false**.
 
 ### ToPromise ( C , x )
 
-The operator `ToPromise` coerces its argument to a promise, ensuring it is of the specified constructor `C`, or returns the argument if it is already a promise matching that constructor.
+The abstract operation ToPromise coerces its argument to a promise, ensuring it is of the specified constructor _C_, or returns the argument if it is already a promise matching that constructor.
 
 1. If `IsPromise(x)` is `true` and `SameValue(x.[[PromiseConstructor]], C)` is `true`, return `x`.
 1. Otherwise,

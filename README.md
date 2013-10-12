@@ -93,6 +93,22 @@ The abstract operation SetValue encapsulates the process of setting a promise's 
 1. Set the value of the [[Following]] internal data property of _p_ to **undefined**.
 1. Return the result of calling PropagateToDerived(_p_).
 
+### Then ( p, onFulfilled, onRejected )
+
+The abstract operation Then queues up fulfillment and/or rejection handlers on a promise for when it becomes fulfilled or rejected, or schedules them to be called in the next microtask if the promise is already fulfilled or rejected. It returns a derived promise, transformed by the passed handlers.
+
+1. Let _following_ be the value of _p_'s [[Following]] internal data property.
+1. If _following_ is not **undefined**, return the result of calling Then(_following_, _onFulfilled_, _onRejected_).
+1. Let _C_ be the result of calling Get(_p_, "constructor").
+1. ReturnIfAbrupt(_C_).
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _returnedPromise_ be _deferred_.[[Promise]].
+1. Let _derived_ be the Derived Promise Transform { [[DerivedPromise]]: _returnedPromise_, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }.
+1. Let _result_ be the result of calling UpdateDerivedFromPromise(_derived_, _p_).
+1. ReturnIfAbrupt(_result_).
+1. Return _returnedPromise_.
+
 ### ToPromise ( C , x )
 
 The abstract operation ToPromise coerces its argument to a promise, ensuring it is of the specified constructor _C_, or returns the argument if it is already a promise matching that constructor.
@@ -104,7 +120,7 @@ The abstract operation ToPromise coerces its argument to a promise, ensuring it 
 1. ReturnIfAbrupt(_deferred_).
 1. Let _resolve_ be _deferred_.[[Resolve]].
 1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
-1. Let _result_ be the result of calling the [[Call]] internal method of _deferred.[[Resolve]]_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
+1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
 1. ReturnIfAbrupt(_result_).
 1. Return _deferred_.[[Promise]].
 
@@ -126,23 +142,6 @@ The operator `Resolve` resolves a promise with a value.
       1. Set `p.[[Following]]` to `x`.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
 1. Otherwise, call `SetValue(p, x)`.
-
-### Then ( p, onFulfilled, onRejected )
-
-The operator `Then` queues up fulfillment and/or rejection handlers on a promise for when it becomes fulfilled or rejected, or schedules them to be called in the next microtask if the promise is already fulfilled or rejected. It returns a derived promise, transformed by the passed handlers.
-
-1. If `p.[[Following]]` is not `undefined`,
-   1. Return `Then(p.[[Following]], onFulfilled, onRejected)`.
-1. Otherwise,
-   1. Let `C` be `Get(p, "constructor")`.
-   1. If `C` is an abrupt completion,
-      1. Let `q` be the result of calling PromiseCreate().
-      1. Call `Reject(q, C.[[value]])`.
-   1. Otherwise,
-      1. Let `q` be `GetDeferred(C.[[value]]).[[Promise]]`.
-      1. Let `derived` be `{ [[DerivedPromise]]: q, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }`.
-      1. Call `UpdateDerivedFromPromise(derived, p)`.
-   1. Return `q`.
 
 ### PropagateToDerived ( p )
 

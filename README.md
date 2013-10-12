@@ -64,6 +64,17 @@ The abstract operation IsResolved checks for whether a promise's fate is resolve
 1. If _p_'s internal data property [[HasReason]] is **true**, return **true**.
 1. Return **false**.
 
+### PropagateToDerived ( p )
+
+The abstract operation PropagateToDerived propagates a promise's value or reason to all of its derived promises.
+
+1. Assert: exactly one of _p_'s [[HasValue]] internal data property and _p_'s [[HasReason]] internal data property is **true**.
+1. Let _deriveds_ be the List that is the value of _p_'s [[Derived]] internal data property.
+1. Repeat for each _derived_ that is an element of _deriveds_, in original insertion order
+   1. Let _result_ be the result of calling UpdateDerived(_derived_, _p_).
+   1. ReturnIfAbrupt(_result_).
+1. Set the value of _p_'s [[Derived]] internal data property to a new empty List.
+
 ### Reject ( p , r )
 
 The abstract operation Reject rejects a promise with a reason.
@@ -142,17 +153,6 @@ The operator `Resolve` resolves a promise with a value.
       1. Set `p.[[Following]]` to `x`.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
 1. Otherwise, call `SetValue(p, x)`.
-
-### PropagateToDerived ( p )
-
-The operator `PropagateToDerived` propagates a promise's `[[Value]]` or `[[Reason]]` to all of its derived promises.
-
-1. Assert: exactly one of `p.[[HasValue]]` and `p.[[HasReason]]` is `true`.
-1. Repeat for each `derived` that is an element of `p.[[Derived]]`, in original insertion order
-   1. Call `UpdateDerived(derived, p)`.
-1. Set `p.[[Derived]]` to a new empty List.
-
-Note: step 3 is not strictly necessary, as preconditions prevent `p.[[Derived]]` from ever being used again after this point.
 
 ### UpdateDerived ( derived , originator )
 

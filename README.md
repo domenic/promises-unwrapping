@@ -85,7 +85,7 @@ The operator `Then` queues up fulfillment and/or rejection handlers on a promise
 1. Otherwise,
    1. Let `C` be `Get(p, "constructor")`.
    1. If `C` is an abrupt completion,
-      1. Let `q` be a newly-created promise object.
+      1. Let `q` be the result of calling PromiseCreate().
       1. Call `Reject(q, C.[[value]])`.
    1. Otherwise,
       1. Let `q` be `GetDeferred(C.[[value]]).[[Promise]]`.
@@ -185,7 +185,7 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 1. Assert: `Type(thenable)` is `Object`.
 1. Assert: `IsCallable(then)`.
 1. Assert: the execution context stack is empty.
-1. Let `p` be a newly-created promise object.
+1. Let `p` be the result of calling PromiseCreate().
 1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
 1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
 1. Let `result` be `then.[[Call]](thenable, (resolve, reject))`.
@@ -203,51 +203,73 @@ The operator `GetDeferred` takes a potential constructor function, and attempts 
       1. Lets `reject` be the value `resolver` is passed as its second argument.
    1. Let `promise` be `C.[[Construct]]((resolver))`.
 1. Otherwise,
-   1. Let `promise` be a newly-created promise object.
+   1. Let `promise` be the result of calling PromiseCreate().
    1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
    1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
 1. Return the record `{ [[Promise]]: promise, [[Resolve]]: resolve, [[Reject]]: reject }`.
 
 ## The Promise Constructor
 
-The `Promise` constructor is the `%Promise%` intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its `this` value with the internal state necessary to support the `Promise.prototype` internal methods.
+The `Promise` constructor is the %Promise% intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its `this` value with the internal state necessary to support the `Promise.prototype` methods.
 
 The `Promise` constructor is designed to be subclassable. It may be used as the value of an `extends` clause of a class declaration. Subclass constructors that intended to inherit the specified `Promise` behavior must include a `super` call to the `Promise` constructor to initialize the `[[IsPromise]]` state of subclass instances.
 
 ### Promise ( resolver )
 
-When `Promise` is called with the argument `resolver`, the following steps are taken. If being called to initialize an uninitialized promise object created by `Promise[@@create]`, `resolver` is assumed to be a function and is given the two arguments `resolve` and `reject` which will perform their eponymous operations on the promise.
-
-1. Let `promise` be the `this` value.
-1. If `Type(promise)` is not `Object`, then throw a `TypeError` exception.
-1. If `promise` does not have an `[[IsPromise]]` internal data property, then throw a `TypeError` exception.
-1. If `promise.[[IsPromise]]` is not `undefined`, then throw a `TypeError` exception.
-1. If not `IsCallable(resolver)`, then throw a `TypeError` exception.
-1. Set `promise.[[IsPromise]]` to `true`.
-1. Set `promise.[[Derived]]` to a new empty List.
-1. Set `promise.[[HasValue]]` to `false`.
-1. Set `promise.[[HasReason]]` to `false`.
-1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(promise, x)`.
-1. Let `reject(r)` be an ECMAScript function that calls `Reject(promise, r)`.
-1. Let `result` be `resolver.[[Call]](undefined, (resolve, reject))`.
-1. If `result` is an abrupt completion, call `Reject(promise, result.[[value]])`.
-1. Return `promise`.
+1. Let _promise_ be the **this** value.
+1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
+1. If _promise_ does not have an [[IsPromise]] internal data property, then throw a **TypeError** exception.
+1. If _promise_'s [[IsPromise]] internal data property is not **undefined**, then throw a **TypeError** exception.
+1. Return the result of calling PromiseInitialise(_promise_, _resolver_).
 
 ### new Promise ( ... argumentsList )
 
-`Promise` called as part of a `new` expression with argument list `argumentList` simply delegates to the usual ECMAScript spec mechanisms for creating new objects, triggering the initialization subsequence of the above `Promise(resolver)` procedure.
+When `Promise` is called as part of a `new` expression it is a constructor: it initialises a newly created object.
 
-1. Return `OrdinaryConstruct(Promise, argumentsList)`.
+`Promise` called as part of a new expression with argument list _argumentsList_ performs the following steps:
+
+1. Let _F_ be the `Promise` function object on which the `new` operator was applied.
+1. Let _argumentsList_ be the _argumentsList_ argument of the [[Construct]] internal method that was invoked by the `new` operator.
+1. Return the result of OrdinaryConstruct(_F_, _argumentsList_).
+
+If Promise is implemented as an ordinary function object, its [[Construct]] internal method will perform the above steps.
+
+### Abstract Operations for the Promise Constructor
+
+#### PromiseAlloc ( constructor )
+
+1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_constructor_, "%PromisePrototype%", ([[IsPromise]], [[PromiseConstructor]], [[Derived]], [[Following]], [[Value]], [[HasValue]], [[Reason]], [[HasReason]])).
+1. Set _obj_'s [[PromiseConstructor]] internal data property to _constructor_.
+1. Return _obj_.
+
+#### PromiseInitialise ( obj, resolver )
+
+1. If IsCallable(_resolver_) is **false**, then throw a **TypeError** exception.
+1. Set _obj_'s [[IsPromise]] internal data property to **true**.
+1. Set _obj_'s [[Derived]] internal data property to a new empty List.
+1. Set _obj_'s [[HasValue]] internal data property to **false**.
+1. Set _obj_'s [[HasReason]] internal data property to **false**.
+1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(obj, x)`.
+1. Let `reject(r)` be an ECMAScript function that calls `Reject(obj, r)`.
+1. Let _result_ be the result of calling the [[Call]] internal method of _resolver_ with **undefined** as _thisArgument_ and a List containing _resolve_ and _reject_ as _argumentsList_.
+1. If _result_ is an abrupt completion, call Reject(obj, _result_.[[value]]).
+1. Return _obj_.
+
+#### PromiseCreate ( )
+
+The abstract operation PromiseCreate is used by the specification to create new promise objects in the pending state.
+
+1. Let _obj_ be the result of calling PromiseAlloc(%Promise%).
+1. ReturnIfAbrupt(_obj_).
+1. Let _resolver_ be a new, empty ECMAScript function object.
+1. Return the result of calling PromiseInitialise(_obj_, _resolver_).
 
 ## Properties of the Promise Constructor
 
 ### Promise \[ @@create \] ( )
 
-`Promise[@@create]()` allocates a new uninitialized promise object, installing its internal data properties and setting the `[[PromiseConstructor]]` brand.
-
-1. Let `p` be `OrdinaryCreateFromConstructor(this, "%PromisePrototype%", ([[IsPromise]], [[PromiseConstructor]], [[Derived]], [[Following]], [[Value]], [[HasValue]], [[Reason]], [[HasReason]]))`.
-1. Set `p.[[PromiseConstructor]]` to `this`.
-1. Return `p`.
+1. Let _F_ be the **this** value.
+1. Return the result of calling PromiseAlloc(_F_).
 
 This property has the attributes `{ [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }`.
 

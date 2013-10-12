@@ -64,6 +64,35 @@ The abstract operation IsResolved checks for whether a promise's fate is resolve
 1. If _p_'s internal data property [[HasReason]] is **true**, return **true**.
 1. Return **false**.
 
+### Reject ( p , r )
+
+The abstract operation Reject rejects a promise with a reason.
+
+1. If IsResolved(_p_), return.
+1. Return the result of calling SetReason(_p_, _r_).
+
+### SetReason ( p , reason )
+
+The abstract operation SetReason encapsulates the process of setting a promise's reason and then propagating this to any derived promises.
+
+1. Assert: the value of _p_'s [[HasValue]] internal data property is **false**.
+1. Assert: the value of _p_'s [[HasReason]] internal data property is **false**.
+1. Set the value of the [[Reason]] internal data property of _p_ to _reason_.
+1. Set the value of the [[HasReason]] internal data property of _p_ to **true**.
+1. Set the value of the [[Following]] internal data property of _p_ to **undefined**.
+1. Return the result of calling PropagateToDerived(_p_).
+
+### SetValue ( p , value )
+
+The abstract operation SetValue encapsulates the process of setting a promise's value and then propagating this to any derived promises.
+
+1. Assert: the value of _p_'s [[HasValue]] internal data property is **false**.
+1. Assert: the value of _p_'s [[HasReason]] internal data property is **false**.
+1. Set the value of the [[Value]] internal data property of _p_ to _value_.
+1. Set the value of the [[HasValue]] internal data property of _p_ to **true**.
+1. Set the value of the [[Following]] internal data property of _p_ to **undefined**.
+1. Return the result of calling PropagateToDerived(_p_).
+
 ### ToPromise ( C , x )
 
 The abstract operation ToPromise coerces its argument to a promise, ensuring it is of the specified constructor _C_, or returns the argument if it is already a promise matching that constructor.
@@ -97,13 +126,6 @@ The operator `Resolve` resolves a promise with a value.
       1. Set `p.[[Following]]` to `x`.
       1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
 1. Otherwise, call `SetValue(p, x)`.
-
-### Reject ( p , r )
-
-The operator `Reject` rejects a promise with a reason.
-
-1. If `IsResolved(p)`, return.
-1. Call `SetReason(p, r)`.
 
 ### Then ( p, onFulfilled, onRejected )
 
@@ -182,30 +204,6 @@ The operator `CallHandler` applies a transformation to a value or reason and use
    1. Let `result` be `handler.[[Call]](undefined, (argument))`.
    1. If `result` is an abrupt completion, call `Reject(derivedPromise, result.[[value]])`.
    1. Otherwise, call `Resolve(derivedPromise, result.[[value]])`.
-
-### SetValue ( p , value )
-
-The operator `SetValue` encapsulates the process of setting a promise's value and then propagating this to any derived promises.
-
-1. Assert: `p.[[HasValue]]` is `false` and `p.[[HasReason]]` is `false`.
-1. Set `p.[[Value]]` to `value`.
-1. Set `p.[[HasValue]]` to `true`.
-1. Set `p.[[Following]]` to `undefined`.
-1. Call `PropagateToDerived(p)`.
-
-Note: step 4 is not strictly necessary, as all code paths check `p.[[HasValue]]` before using `p.[[Following]]`.
-
-### SetReason ( p , reason )
-
-The operator `SetReason` encapsulates the process of setting a promise's reason and then propagating this to any derived promises.
-
-1. Assert: `p.[[HasValue]]` is `false` and `p.[[HasReason]]` is `false`.
-1. Set `p.[[Reason]]` to `reason`.
-1. Set `p.[[HasReason]]` to `true`.
-1. Set `p.[[Following]]` to `undefined`.
-1. Call `PropagateToDerived(p)`.
-
-Note: step 4 is not strictly necessary, as all code paths check `p.[[HasReason]]` before using `p.[[Following]]`.
 
 ### CoerceThenable ( thenable , then )
 

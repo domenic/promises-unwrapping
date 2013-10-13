@@ -221,9 +221,9 @@ The operator `CoerceThenable` takes a "thenable" object whose `then` method has 
 
 ## The Promise Constructor
 
-The `Promise` constructor is the %Promise% intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its `this` value with the internal state necessary to support the `Promise.prototype` methods.
+The Promise constructor is the %Promise% intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its **this** value with the internal state necessary to support the `Promise.prototype` methods.
 
-The `Promise` constructor is designed to be subclassable. It may be used as the value of an `extends` clause of a class declaration. Subclass constructors that intended to inherit the specified `Promise` behavior must include a `super` call to the `Promise` constructor to initialize the `[[IsPromise]]` state of subclass instances.
+The `Promise` constructor is designed to be subclassable. It may be used as the value of an `extends` clause of a class declaration. Subclass constructors that intended to inherit the specified `Promise` behavior must include a `super` call to the `Promise` constructor.
 
 ### Promise ( resolver )
 
@@ -282,99 +282,108 @@ The abstract operation PromiseCreate is used by the specification to create new 
 1. Let _F_ be the **this** value.
 1. Return the result of calling PromiseAlloc(_F_).
 
-This property has the attributes `{ [[Writable]]: false, [[Enumerable]]: false, [[Configurable]]: true }`.
+This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **true** }.
 
 ### Promise.resolve ( x )
 
-`Promise.resolve` returns a new promise resolved with the passed argument.
+`resolve` returns a new promise resolved with the passed argument.
 
-1. Let `deferred` be `GetDeferred(this)`.
-1. Call `deferred.[[Resolve]].[[Call]](undefined, (x))`.
-1. Return `deferred.[[Promise]]`.
+1. Let _C_ be the **this** value.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _resolve_ be _deferred_.[[Resolve]].
+1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
+1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
+1. ReturnIfAbrupt(_result_).
+1. Return _deferred_.[[Promise]].
 
-Note: The `resolve` function is an intentionally generic factory method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `resolve` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ### Promise.reject ( r )
 
-`Promise.reject` returns a new promise rejected with the passed argument.
+`reject` returns a new promise rejected with the passed argument.
 
-1. Let `deferred` be `GetDeferred(this)`.
-1. Call `deferred.[[Reject]].[[Call]](undefined, (r))`.
-1. Return `deferred.[[Promise]]`.
+1. Let _C_ be the **this** value.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _reject_ be _deferred_.[[Reject]].
+1. If IsCallable(_reject_) is **false**, throw a **TypeError** exception.
+1. Let _result_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and a list containing _r_ as _argumentsList_.
+1. ReturnIfAbrupt(_result_).
+1. Return _deferred_.[[Promise]].
 
-Note: The `reject` function is an intentionally generic factory method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `reject` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ### Promise.cast ( x )
 
-`Promise.cast` coerces its argument to a promise, or returns the argument if it is already a promise.
+`cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
-1. Return `ToPromise(this, x)`.
+1. Let _C_ be the **this** value.
+1. Return the result of calling ToPromise(_C_, _x_).
 
-Note: The `cast` function is an intentionally generic utility method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `cast` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ### Promise.race ( iterable )
 
-`Promise.race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
+`race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
-1. Let `deferred` be `GetDeferred(this)`.
+1. Let _C_ be the **this** value.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
 1. Repeat
-   1. Let `next` be `IteratorStep(iterable)`.
-   1. If `next` is an abrupt completion,
-      1. Call `deferred.[[Reject]].[[Call]](undefined, (next.[[value]]))`.
-      1. Return `deferred.[[Promise]]`.
-   1. Otherwise, if `next` is `false`, return `deferred.[[Promise]]`.
-   1. Otherwise,
-      1. Let `nextValue` be `IteratorValue(next)`.
-      1. If `nextValue` is an abrupt completion,
-         1. Call `deferred.[[Reject]].[[Call]](undefined, (nextValue.[[value]]))`.
-         1. Return `deferred.[[Promise]]`.
-      1. Otherwise,
-         1. Let `nextPromise` be `ToPromise(this, nextValue)`.
-         1. Call `Then(nextPromise, deferred.[[Resolve]], deferred.[[Reject]])`.
+   1. Let _next_ be the result of calling IteratorStep(_iterable_).
+   1. ReturnIfAbrupt(_next_).
+   1. If _next_ is **false**, return _deferred_.[[Promise]].
+   1. Let _nextValue_ be the result of calling IteratorValue(_next_).
+   1. ReturnIfAbrupt(_nextValue_).
+   1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
+   1. ReturnIfAbrupt(_nextPromise_).
+   1. Let _result_ be the result of calling Then(_nextPromise_, _deferred_.[[Resolve]], _deferred_.[[Reject]]).
+   1. ReturnIfAbrupt(_result_).
 
-Note: The `race` function is an intentionally generic utility method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `race` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ### Promise.all ( iterable )
 
-`Promise.all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
+`all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
-1. Let `deferred` be `GetDeferred(this)`.
-1. Let `values` be `ArrayCreate(0)`.
-1. Let `countdown` be `0`.
-1. Let `index` be `0`.
+1. Let _C_ be the **this** value.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _values_ be the result of calling ArrayCreate(0).
+1. Let _countdown_ be 0.
+1. Let _index_ be 0.
+1. Let _resolve_ be _deferred_.[[Resolve]].
+1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
 1. Repeat
-   1. Let `next` be `IteratorStep(iterable)`.
-   1. If `next` is an abrupt completion,
-      1. Call `deferred.[[Reject]].[[Call]](undefined, (next.[[value]]))`.
-      1. Return `deferred.[[Promise]]`.
-   1. Otherwise, if `next` is `false`,
-      1. If `index` is `0`, call `deferred.[[Resolve]].[[Call]](undefined, (values))`.
-      1. Return `deferred.[[Promise]]`.
-   1. Otherwise,
-      1. Let `nextValue` be `IteratorValue(next)`.
-      1. If `nextValue` is an abrupt completion,
-         1. Call `deferred.[[Reject]].[[Call]](undefined, (nextValue.[[value]]))`.
-         1. Return `deferred.[[Promise]]`.
-      1. Otherwise,
-         1. Let `nextPromise` be `ToPromise(this, nextValue)`.
-         1. Let `currentIndex` be the current value of `index`.
-         1. Let `onFulfilled(v)` be an ECMAScript function that:
-            1. Calls `values.[[DefineOwnProperty]](currentIndex, { [[Value]]: v, [[Writable]]: true, [[Enumerable]]: true, [[Configurable]]: true }`.
-            1. Sets `countdown` to `countdown - 1`.
-            1. If `countdown` is `0`, calls `deferred.[[Resolve]].[[Call]](undefined, (values))`.
-         1. Call `Then(nextPromise, onFulfilled, deferred.[[Reject]])`.
-         1. Set `index` to `index + 1`.
-         1. Set `countdown` to `countdown + 1`.
+   1. Let _next_ be the result of calling IteratorStep(_iterable_).
+   1. ReturnIfAbrupt(_next_).
+   1. If _next_ is **false**,
+      1. If _index_ is 0,
+         1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _values_ as _argumentsList_.
+         1. ReturnIfAbrupt(_result_).
+      1. Return _deferred_.[[Promise]].
+   1. Let _nextValue_ be the result of calling IteratorValue(_next_).
+   1. ReturnIfAbrupt(_nextValue_).
+   1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
+   1. ReturnIfAbrupt(_nextPromise_).
+   1. Let _currentIndex_ be the current value of _index_.
+   1. Let `onFulfilled(v)` be an ECMAScript function that:
+      1. Calls the [[DefineOwnProperty]] internal method of _values_ with arguments _currentIndex_ and Property Descriptor { [[Value]]: _v_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
+      1. Sets _countdown_ to _countdown_ - 1.
+      1. If _countdown_ is 0, calls `resolve.[[Call]](undefined, (values))`.
+   1. Let _result_ be the result of calling Then(_nextPromise_, _onFulfilled_, _deferred_.[[Reject]]).
+   1. ReturnIfAbrupt(_result_).
+   1. Set _index_ to _index_ + 1.
+   1. Set _countdown_ to _countdown_ + 1.
 
-Note: The `all` function is an intentionally generic utility method; it does not require that its `this` value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `all` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ## Properties of the Promise Prototype Object
 
-The `Promise` prototype object is itself an ordinary object. It is not a `Promise` instance and does not have any of the promise instances' internal data properties, such as `[[IsPromise]]`.
+The Promise prototype object is itself an ordinary object. It is not a Promise instance and does not have any of the promise instances' internal data properties, such as [[IsPromise]].
 
-The value of the `[[Prototype]]` internal data property of the `Promise` prototype object is the standard built-in `Object` prototype object.
-
-The intrinsic object `%PromisePrototype%` is the initial value of the `"prototype"` data property of the intrinsic `%Promise%`.
+The value of the [[Prototype]] internal data property of the Promise prototype object is the standard built-in Object prototype object.
 
 ### Promise.prototype.constructor
 
@@ -382,20 +391,22 @@ The initial value of `Promise.prototype.constructor` is the built-in `Promise` c
 
 ### Promise.prototype.then ( onFulfilled , onRejected )
 
-1. If `IsPromise(this)` is `false`, throw a `TypeError`.
-1. Otherwise, return `Then(this, onFulfilled, onRejected)`.
+1. Let _promise_ be the **this** value.
+1. If IsPromise(_promise_) is **false**, throw a **TypeError** exception.
+1. Return the result of calling Then(_promise_, _onFulfilled_, _onRejected_).
 
-Note: The `then` function is not generic. If the `this` value is not an object with a `[[IsPromise]]` internal data property initialized to `true`, a `TypeError` exception is immediately thrown when it is called.
+Note: The `then` function is not generic. If the **this(**) value is not an object with an [[IsPromise]] internal data property initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
 
 ### Promise.prototype.catch ( onRejected )
 
-1. Return `Invoke(this, "then", (undefined, onRejected))`.
+1. Let _promise_ be the **this** value.
+1. Return the result of calling Invoke(_promise_, `"then"`, (**undefined**, _onRejected_)).
 
-Note: The `catch` function is intentionally generic; it does not require that its `this` value be a Promise object. Therefore, it can be transferred to other kinds of objects for use as a method.
+Note: The `catch` function is intentionally generic; it does not require that its **this** value be a Promise object. Therefore, it can be transferred to other kinds of objects for use as a method.
 
 ## Properties of Promise Instances
 
-Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, `%PromisePrototype%`). Promise instances are initially created with the internal properties described in this table.
+Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, %PromisePrototype%). Promise instances are initially created with the internal properties described in this table.
 
 <table>
     <caption>Internal Data Properties of Promise Instances</caption>
@@ -408,35 +419,52 @@ Promise instances are ordinary objects that inherit properties from the Promise 
     <tbody>
         <tr>
             <td>[[IsPromise]]</td>
-            <td>A branding property given to all promises at allocation-time. Uninitialized promises have it set to `undefined`, whereas initialized ones have it set to `true`.</td>
+            <td>A branding property given to all promises at allocation-time. Uninitialized promises have it set to <strong>undefined</strong>, whereas initialized ones have it set to <strong>true</strong>.</td>
         </tr>
         <tr>
             <td>[[PromiseConstructor]]</td>
-            <td>The function object that was used to construct this promise. Checked by `Promise.cast`.</td>
+            <td>The function object that was used to construct this promise. Checked by <code>Promise.cast</code>.</td>
         </tr>
         <tr>
             <td>[[Derived]]</td>
-            <td>A List of derived promise transforms that need to be processed once the promise's `[[HasValue]]` or `[[HasReason]]` become `true`.</td>
+            <td>A List of derived promise transforms that need to be processed once the promise's [[HasValue]] or [[HasReason]] become <strong>true</strong>.</td>
         </tr>
         <tr>
             <td>[[Following]]</td>
-            <td>Another promise that this one is following, or `undefined`.</td>
+            <td>Another promise that this one is following, or <strong>undefined</strong>.</td>
         </tr>
         <tr>
             <td>[[Value]]</td>
-            <td>The promise's direct fulfillment value (from resolving it with a non-thenable). Only meaningful if `[[HasValue]]` is `true`.</td>
+            <td>The promise's direct fulfillment value (from resolving it with a non-thenable). Only meaningful if [[HasValue]] is <strong>true</strong>.</td>
         </tr>
         <tr>
             <td>[[HasValue]]</td>
-            <td>Whether the promise has a direct fulfillment value or not. This allows distinguishing between no direct fulfillment value, and one of `undefined`.</td>
+            <td>Whether the promise has a direct fulfillment value or not. This allows distinguishing between no direct fulfillment value, and one of <strong>undefined</strong>.</td>
         </tr>
         <tr>
             <td>[[Reason]]</td>
-            <td>The promise's direct rejection reason (from rejecting it). Only meaningful if `[[HasReason]]` is `true`.</td>
+            <td>The promise's direct rejection reason (from rejecting it). Only meaningful if [[HasReason]] is <strong>true</strong>.</td>
         </tr>
         <tr>
             <td>[[HasReason]]</td>
-            <td>Whether the promise has a direct rejection reason or not. This allows distinguishing between no direct rejection reason, and one of `undefined`.</td>
+            <td>Whether the promise has a direct rejection reason or not. This allows distinguishing between no direct rejection reason, and one of <strong>undefined</strong>.</td>
         </tr>
     </tbody>
+</table>
+
+# Deltas to Other Areas of the Spec
+
+## Well-Known Intrinsic Objects Table
+
+Add the following rows:
+
+<table>
+   <tr>
+      <td>%Promise%</td>
+      <td>The initial value of the global object property named <code>"Promise"</code>.</td>
+   </tr>
+   <tr>
+      <td>%PromisePrototype%</td>
+      <td>The initial value of the <code>"prototype"</code> data property of the intrinsic %Promise%.</td>
+   </tr>
 </table>

@@ -22,7 +22,7 @@
     "url": "https://github.com/domenic/promises-unwrapping/issues"
   },
   "dependencies": {
-    "promises-aplus-tests": "git://github.com/promises-aplus/promises-tests#spec-1.1",
-    "mocha": "~1.12.1"
+    "promises-aplus-tests": "2.x",
+    "mocha": "~1.13.0"
   }
 }

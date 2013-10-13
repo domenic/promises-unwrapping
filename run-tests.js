@@ -27,11 +27,11 @@ function fulfilledThenable(value) {
 
 describe("Memoization of thenables", function () {
     specify("retrieving a value twice, in parallel, should only call `then` once.", function (done) {
-        var tuple = adapter.pending();
+        var deferred = adapter.deferred();
         var thenable = fulfilledThenable(sentinel);
-        var derived = tuple.promise.then(function () { return thenable; });
+        var derived = deferred.promise.then(function () { return thenable; });
 
-        tuple.fulfill();
+        deferred.resolve();
 
         setTimeout(function () {
             assert.strictEqual(thenable.timesCalled, 0);
@@ -62,11 +62,11 @@ describe("Memoization of thenables", function () {
     });
 
     specify("retrieving a value twice, in sequence, should only call `then` once.", function (done) {
-        var tuple = adapter.pending();
+        var deferred = adapter.deferred();
         var thenable = fulfilledThenable(sentinel);
-        var derived = tuple.promise.then(function () { return thenable; });
+        var derived = deferred.promise.then(function () { return thenable; });
 
-        tuple.fulfill();
+        deferred.resolve();
 
         setTimeout(function () {
             assert.strictEqual(thenable.timesCalled, 0);
@@ -99,14 +99,14 @@ describe("Memoization of thenables", function () {
     });
 
     specify("when multiple promises are resolved to the thenable", function (done) {
-        var tuple1 = adapter.pending();
-        var tuple2 = adapter.pending();
+        var deferred1 = adapter.deferred();
+        var deferred2 = adapter.deferred();
         var thenable = fulfilledThenable(sentinel);
-        var derived1 = tuple1.promise.then(function () { return thenable; });
-        var derived2 = tuple2.promise.then(function () { return thenable; });
+        var derived1 = deferred1.promise.then(function () { return thenable; });
+        var derived2 = deferred2.promise.then(function () { return thenable; });
 
-        tuple1.fulfill();
-        tuple2.fulfill();
+        deferred1.resolve();
+        deferred2.resolve();
 
         var valuesGotten = 0;
         adapter.done(derived1, function (value) {
@@ -150,7 +150,7 @@ describe("Promise.all", function () {
     });
 
     it("rejects if any passed promise is rejected", function (done) {
-        var foreverPending = adapter.pending().promise;
+        var foreverPending = adapter.deferred().promise;
         var error = new Error("Rejected");
         var rejected = Promise.reject(error);
 

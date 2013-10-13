@@ -538,20 +538,22 @@ exports.done = function (promise, onFulfilled, onRejected) {
     });
 };
 
-exports.pending = function () {
+exports.deferred = function () {
     let resolvePromise, rejectPromise;
     let promise = ES6New(Promise, function (resolve, reject) {
         resolvePromise = resolve;
         rejectPromise = reject;
     });
 
-    // NB: Promises/A+ tests never pass promises (or thenables) to the adapter's `fulfill` method, so using
-    // `resolvePromise` is equivalent to some hypothetical fulfiller.
     return {
         promise: promise,
-        fulfill: resolvePromise,
+        resolve: resolvePromise,
         reject: rejectPromise
     };
 };
+
+exports.resolved = Promise.resolve.bind(Promise);
+
+exports.rejected = Promise.reject.bind(Promise);
 
 exports.Promise = Promise;

@@ -130,10 +130,11 @@ describe("Memoization of thenables", function () {
     });
 });
 
-// Does not work even in Node 0.11.7 --harmony, since Array is not iterable yet I guess? So skipping.
-describe.skip("Promise.all", function () {
+// In Node v0.11.7 --harmony, arrays are not iterable, but they have `.values()` methods that return iterables.
+// In real life we should just use arrays and not need to do the silly `.values()` thing.
+describe("Promise.all", function () {
     it("fulfills if passed an empty array", function (done) {
-        adapter.done(Promise.all([]), function (value) {
+        adapter.done(Promise.all([].values()), function (value) {
             assert(Array.isArray(value));
             assert.deepEqual(value, []);
             done();
@@ -141,7 +142,7 @@ describe.skip("Promise.all", function () {
     });
 
     it("fulfills if passed an array of mixed fulfilled promises and values", function (done) {
-        adapter.done(Promise.all([0, Promise.resolve(1), 2, Promise.resolve(3)]), function (value) {
+        adapter.done(Promise.all([0, Promise.resolve(1), 2, Promise.resolve(3)].values()), function (value) {
             assert(Array.isArray(value));
             assert.deepEqual(value, [0, 1, 2, 3]);
             done();
@@ -149,11 +150,11 @@ describe.skip("Promise.all", function () {
     });
 
     it("rejects if any passed promise is rejected", function (done) {
-        var foreverPending = new Promise(function () {});
+        var foreverPending = adapter.pending().promise;
         var error = new Error("Rejected");
         var rejected = Promise.reject(error);
 
-        adapter.done(Promise.all([foreverPending, rejected]),
+        adapter.done(Promise.all([foreverPending, rejected].values()),
             function (value) {
                 assert(false, "should never get here");
                 done();
@@ -169,21 +170,21 @@ describe.skip("Promise.all", function () {
         var normal = Promise.resolve(1);
         var foreign = { then: function (f) { f(2); } };
 
-        adapter.done(Promise.all([normal, foreign]), function (value) {
+        adapter.done(Promise.all([normal, foreign].values()), function (value) {
             assert.deepEqual(value, [1, 2]);
             done();
         });
     });
 
-    it("fulfills when passed an sparse array, skipping the omitted values", function (done) {
-        adapter.done(Promise.all([Promise.resolve(0), , , Promise.resolve(1)]), function (value) {
-            assert.deepEqual(value, [0, 1]);
+    it("fulfills when passed an sparse array, giving `undefined` for the omitted values", function (done) {
+        adapter.done(Promise.all([Promise.resolve(0), , , Promise.resolve(1)].values()), function (value) {
+            assert.deepEqual(value, [0, undefined, undefined, 1]);
             done();
         });
     });
 
     it("does not modify the input array", function (done) {
-        var input = [0, 1];
+        var input = [0, 1].values();
 
         adapter.done(Promise.all(input), function (value) {
             assert.notStrictEqual(input, value);

@@ -284,65 +284,6 @@ The abstract operation PromiseCreate is used by the specification to create new 
 
 This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **true** }.
 
-### Promise.resolve ( x )
-
-`resolve` returns a new promise resolved with the passed argument.
-
-1. Let _C_ be the **this** value.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _resolve_ be _deferred_.[[Resolve]].
-1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
-1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
-1. ReturnIfAbrupt(_result_).
-1. Return _deferred_.[[Promise]].
-
-Note: The `resolve` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
-
-### Promise.reject ( r )
-
-`reject` returns a new promise rejected with the passed argument.
-
-1. Let _C_ be the **this** value.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _reject_ be _deferred_.[[Reject]].
-1. If IsCallable(_reject_) is **false**, throw a **TypeError** exception.
-1. Let _result_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and a list containing _r_ as _argumentsList_.
-1. ReturnIfAbrupt(_result_).
-1. Return _deferred_.[[Promise]].
-
-Note: The `reject` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
-
-### Promise.cast ( x )
-
-`cast` coerces its argument to a promise, or returns the argument if it is already a promise.
-
-1. Let _C_ be the **this** value.
-1. Return the result of calling ToPromise(_C_, _x_).
-
-Note: The `cast` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
-
-### Promise.race ( iterable )
-
-`race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
-
-1. Let _C_ be the **this** value.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Repeat
-   1. Let _next_ be the result of calling IteratorStep(_iterable_).
-   1. ReturnIfAbrupt(_next_).
-   1. If _next_ is **false**, return _deferred_.[[Promise]].
-   1. Let _nextValue_ be the result of calling IteratorValue(_next_).
-   1. ReturnIfAbrupt(_nextValue_).
-   1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
-   1. ReturnIfAbrupt(_nextPromise_).
-   1. Let _result_ be the result of calling Then(_nextPromise_, _deferred_.[[Resolve]], _deferred_.[[Reject]]).
-   1. ReturnIfAbrupt(_result_).
-
-Note: The `race` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
-
 ### Promise.all ( iterable )
 
 `all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
@@ -379,6 +320,65 @@ Note: The `race` function is an intentionally generic utility method; it does no
 
 Note: The `all` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
+### Promise.cast ( x )
+
+`cast` coerces its argument to a promise, or returns the argument if it is already a promise.
+
+1. Let _C_ be the **this** value.
+1. Return the result of calling ToPromise(_C_, _x_).
+
+Note: The `cast` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+
+### Promise.race ( iterable )
+
+`race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
+
+1. Let _C_ be the **this** value.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Repeat
+   1. Let _next_ be the result of calling IteratorStep(_iterable_).
+   1. ReturnIfAbrupt(_next_).
+   1. If _next_ is **false**, return _deferred_.[[Promise]].
+   1. Let _nextValue_ be the result of calling IteratorValue(_next_).
+   1. ReturnIfAbrupt(_nextValue_).
+   1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
+   1. ReturnIfAbrupt(_nextPromise_).
+   1. Let _result_ be the result of calling Then(_nextPromise_, _deferred_.[[Resolve]], _deferred_.[[Reject]]).
+   1. ReturnIfAbrupt(_result_).
+
+Note: The `race` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+
+### Promise.reject ( r )
+
+`reject` returns a new promise rejected with the passed argument.
+
+1. Let _C_ be the **this** value.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _reject_ be _deferred_.[[Reject]].
+1. If IsCallable(_reject_) is **false**, throw a **TypeError** exception.
+1. Let _result_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and a list containing _r_ as _argumentsList_.
+1. ReturnIfAbrupt(_result_).
+1. Return _deferred_.[[Promise]].
+
+Note: The `reject` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+
+### Promise.resolve ( x )
+
+`resolve` returns a new promise resolved with the passed argument.
+
+1. Let _C_ be the **this** value.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _resolve_ be _deferred_.[[Resolve]].
+1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
+1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
+1. ReturnIfAbrupt(_result_).
+1. Return _deferred_.[[Promise]].
+
+Note: The `resolve` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+
 ## Properties of the Promise Prototype Object
 
 The Promise prototype object is itself an ordinary object. It is not a Promise instance and does not have any of the promise instances' internal data properties, such as [[IsPromise]].
@@ -389,20 +389,20 @@ The value of the [[Prototype]] internal data property of the Promise prototype o
 
 The initial value of `Promise.prototype.constructor` is the built-in `Promise` constructor.
 
-### Promise.prototype.then ( onFulfilled , onRejected )
-
-1. Let _promise_ be the **this** value.
-1. If IsPromise(_promise_) is **false**, throw a **TypeError** exception.
-1. Return the result of calling Then(_promise_, _onFulfilled_, _onRejected_).
-
-Note: The `then` function is not generic. If the **this(**) value is not an object with an [[IsPromise]] internal data property initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
-
 ### Promise.prototype.catch ( onRejected )
 
 1. Let _promise_ be the **this** value.
 1. Return the result of calling Invoke(_promise_, `"then"`, (**undefined**, _onRejected_)).
 
 Note: The `catch` function is intentionally generic; it does not require that its **this** value be a Promise object. Therefore, it can be transferred to other kinds of objects for use as a method.
+
+### Promise.prototype.then ( onFulfilled , onRejected )
+
+1. Let _promise_ be the **this** value.
+1. If IsPromise(_promise_) is **false**, throw a **TypeError** exception.
+1. Return the result of calling Then(_promise_, _onFulfilled_, _onRejected_).
+
+Note: The `then` function is not generic. If the **this** value is not an object with an [[IsPromise]] internal data property initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
 
 ## Properties of Promise Instances
 

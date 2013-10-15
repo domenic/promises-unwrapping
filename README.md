@@ -288,16 +288,18 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
 
 `all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
+1. Let _iterator_ be the result of calling GetIterator(_iterable_).
+1. ReturnIfAbrupt(_iterator_).
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
+1. Let _resolve_ be _deferred_.[[Resolve]].
+1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
 1. Let _values_ be the result of calling ArrayCreate(0).
 1. Let _countdown_ be 0.
 1. Let _index_ be 0.
-1. Let _resolve_ be _deferred_.[[Resolve]].
-1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
 1. Repeat
-   1. Let _next_ be the result of calling IteratorStep(_iterable_).
+   1. Let _next_ be the result of calling IteratorStep(_iterator_).
    1. ReturnIfAbrupt(_next_).
    1. If _next_ is **false**,
       1. If _index_ is 0,
@@ -333,11 +335,13 @@ Note: The `cast` function is an intentionally generic utility method; it does no
 
 `race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
+1. Let _iterator_ be the result of calling GetIterator(_iterable_).
+1. ReturnIfAbrupt(_iterator_).
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
 1. Repeat
-   1. Let _next_ be the result of calling IteratorStep(_iterable_).
+   1. Let _next_ be the result of calling IteratorStep(_iterator_).
    1. ReturnIfAbrupt(_next_).
    1. If _next_ is **false**, return _deferred_.[[Promise]].
    1. Let _nextValue_ be the result of calling IteratorValue(_next_).

@@ -288,35 +288,35 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
 
 `all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
-1. Let _iterator_ be the result of calling GetIterator(_iterable_).
-1. ReturnIfAbrupt(_iterator_).
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
 1. Let _resolve_ be _deferred_.[[Resolve]].
 1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
+1. Let _iterator_ be the result of calling GetIterator(_iterable_).
+1. RejectIfAbrupt(_iterator_, _deferred_).
 1. Let _values_ be the result of calling ArrayCreate(0).
 1. Let _countdown_ be 0.
 1. Let _index_ be 0.
 1. Repeat
    1. Let _next_ be the result of calling IteratorStep(_iterator_).
-   1. ReturnIfAbrupt(_next_).
+   1. RejectIfAbrupt(_next_, _deferred_).
    1. If _next_ is **false**,
       1. If _index_ is 0,
          1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _values_ as _argumentsList_.
          1. ReturnIfAbrupt(_result_).
       1. Return _deferred_.[[Promise]].
    1. Let _nextValue_ be the result of calling IteratorValue(_next_).
-   1. ReturnIfAbrupt(_nextValue_).
+   1. RejectIfAbrupt(_nextValue_, _deferred_).
    1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
-   1. ReturnIfAbrupt(_nextPromise_).
+   1. RejectIfAbrupt(_nextPromise_, _deferred_).
    1. Let _currentIndex_ be the current value of _index_.
    1. Let `onFulfilled(v)` be an ECMAScript function that:
       1. Calls the [[DefineOwnProperty]] internal method of _values_ with arguments _currentIndex_ and Property Descriptor { [[Value]]: _v_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
       1. Sets _countdown_ to _countdown_ - 1.
       1. If _countdown_ is 0, calls `resolve.[[Call]](undefined, (values))`.
    1. Let _result_ be the result of calling Then(_nextPromise_, _onFulfilled_, _deferred_.[[Reject]]).
-   1. ReturnIfAbrupt(_result_).
+   1. RejectIfAbrupt(_result_, _deferred_).
    1. Set _index_ to _index_ + 1.
    1. Set _countdown_ to _countdown_ + 1.
 
@@ -335,21 +335,21 @@ Note: The `cast` function is an intentionally generic utility method; it does no
 
 `race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
-1. Let _iterator_ be the result of calling GetIterator(_iterable_).
-1. ReturnIfAbrupt(_iterator_).
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
+1. Let _iterator_ be the result of calling GetIterator(_iterable_).
+1. RejectIfAbrupt(_iterator_, _deferred_).
 1. Repeat
    1. Let _next_ be the result of calling IteratorStep(_iterator_).
-   1. ReturnIfAbrupt(_next_).
+   1. RejectIfAbrupt(_next_, _deferred_).
    1. If _next_ is **false**, return _deferred_.[[Promise]].
    1. Let _nextValue_ be the result of calling IteratorValue(_next_).
-   1. ReturnIfAbrupt(_nextValue_).
+   1. RejectIfAbrupt(_nextValue_, _deferred_).
    1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
-   1. ReturnIfAbrupt(_nextPromise_).
+   1. RejectIfAbrupt(_nextPromise_, _deferred_).
    1. Let _result_ be the result of calling Then(_nextPromise_, _deferred_.[[Resolve]], _deferred_.[[Reject]]).
-   1. ReturnIfAbrupt(_result_).
+   1. RejectIfAbrupt(_result_, _deferred_).
 
 Note: The `race` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
@@ -472,6 +472,26 @@ Add the following rows:
       <td>The initial value of the <code>"prototype"</code> data property of the intrinsic %Promise%.</td>
    </tr>
 </table>
+
+## The Completion Record Specification Type
+
+Add the following section:
+
+### RejectIfAbrupt
+
+Algorithm steps that say
+
+1. RejectIfAbrupt(_argument_, _deferred_).
+
+mean the same things as:
+
+1. If _argument_ is an abrupt completion,
+   1. Let _reject_ be _deferred_.[[Reject]].
+   1. If IsCallable(_reject_) is **false**, throw a **TypeError** exception.
+   1. Let _result_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and a list containing _argument_.[[value]] as _argumentsList_.
+   1. ReturnIfAbrupt(_result_).
+   1. Return _deferred_.[[Promise]].
+1. Else if _argument_ is a Completion Record, then let _argument_ be _argument_.[[value]].
 
 ---
 

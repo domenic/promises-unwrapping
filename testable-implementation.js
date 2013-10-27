@@ -5,10 +5,6 @@ let assert = require("assert");
 // polyfill there are much simpler and more performant ways. This implementation's focus is on 100% correctness in all
 // subtle details.
 
-// ## The ThenableCoercions Weak Map
-
-let ThenableCoercions = new WeakMap();
-
 // ## Abstract Operations for Promise Objects
 
 function GetDeferred(C) {
@@ -17,9 +13,9 @@ function GetDeferred(C) {
     }
 
     let resolve, reject;
-    let resolver = function (firstArgument, secondArgument) {
-        resolve = firstArgument;
-        reject = secondArgument;
+    let resolver = function (passedResolve, passedReject) {
+        resolve = passedResolve;
+        reject = passedReject;
     };
 
     let promise = ES6New(C, resolver);
@@ -28,242 +24,173 @@ function GetDeferred(C) {
         throw new TypeError("Tried to construct a promise but the constructor returned a non-promise.");
     }
 
+    if (IsCallable(resolve) === false) {
+        throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable resolve " +
+                            "argument.");
+    }
+
+    if (IsCallable(reject) === false) {
+        throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable reject " +
+                            "argument.");
+    }
+
     return { "[[Promise]]": promise, "[[Resolve]]": resolve, "[[Reject]]": reject };
 }
 
 function IsPromise(x) {
-    return TypeIsObject(x) && has_slot(x, "[[IsPromise]]") && get_slot(x, "[[IsPromise]]") === true;
+    if (!TypeIsObject(x)) {
+        return false;
+    }
+
+    if (!has_slot(x, "[[PromiseStatus]]")) {
+        return false;
+    }
+
+    if (get_slot(x, "[[PromiseStatus]]") === undefined) {
+        return false;
+    }
+
+    return true;
 }
 
-function IsResolved(p) {
-    if (get_slot(p, "[[Following]]") !== undefined) {
-        return true;
-    }
-    if (get_slot(p, "[[HasValue]]") === true) {
-        return true;
-    }
-    if (get_slot(p, "[[HasReason]]") === true) {
-        return true;
-    }
-    return false;
+function MakePromiseReactionFunction(deferred, handler) {
+    let F = make_PromiseReactionFunction();
+    set_slot(F, "[[Deferred]]", deferred);
+    set_slot(F, "[[Handler]]", handler);
+    return F;
 }
 
-function PropagateToDerived(p) {
-    assert((get_slot(p, "[[HasValue]]") === true && get_slot(p, "[[HasReason]]") === false) ||
-           (get_slot(p, "[[HasValue]]") === false && get_slot(p, "[[HasReason]]") === true));
-
-    let deriveds = get_slot(p, "[[Derived]]");
-
-    deriveds.forEach(function (derived) {
-        UpdateDerived(derived, p);
-    });
-
-    set_slot(p, "[[Derived]]", []);
-}
-
-function Reject(p, r) {
-    if (IsResolved(p)) {
+function PromiseReject(promise, reason) {
+    if (get_slot(promise, "[[PromiseStatus]]") !== "pending") {
         return;
     }
 
-    SetReason(p, r);
+    let reactions = get_slot(promise, "[[RejectReactions]]");
+    set_slot(promise, "[[Reason]]", reason);
+    set_slot(promise, "[[ResolveReactions]]", undefined);
+    set_slot(promise, "[[RejectReactions]]", undefined);
+    set_slot(promise, "[[PromiseStatus]]", "has-rejection");
+    TriggerPromiseReactions(reactions, reason);
 }
 
-function SetReason(p, reason) {
-    assert(get_slot(p, "[[HasValue]]") === false);
-    assert(get_slot(p, "[[HasReason]]") === false);
-
-    set_slot(p, "[[Reason]]", reason);
-    set_slot(p, "[[HasReason]]", true);
-    set_slot(p, "[[Following]]", undefined);
-
-    return PropagateToDerived(p);
-}
-
-function SetValue(p, value) {
-    assert(get_slot(p, "[[HasValue]]") === false);
-    assert(get_slot(p, "[[HasReason]]") === false);
-
-    set_slot(p, "[[Value]]", value);
-    set_slot(p, "[[HasValue]]", true);
-    set_slot(p, "[[Following]]", undefined);
-
-    return PropagateToDerived(p);
-}
-
-function Then(p, onFulfilled, onRejected) {
-    let following = get_slot(p, "[[Following]]");
-    if (following !== undefined) {
-        return Then(following, onFulfilled, onRejected);
-    }
-
-    let C = Get(p, "constructor");
-    let deferred = GetDeferred(C);
-    let returnedPromise = deferred["[[Promise]]"];
-    let derived = {
-        "[[DerivedPromise]]": returnedPromise,
-        "[[OnFulfilled]]": onFulfilled,
-        "[[OnRejected]]": onRejected
-    };
-
-    UpdateDerivedFromPromise(derived, p);
-
-    return returnedPromise;
-}
-
-function ToPromise(C, x) {
-    if (IsPromise(x) === true) {
-        let constructor = get_slot(x, "[[PromiseConstructor]]");
-        if (SameValue(constructor, C) === true) {
-            return x;
-        }
-    }
-
-    let deferred = GetDeferred(C);
-    let resolve = deferred["[[Resolve]]"];
-    if (IsCallable(resolve) === false) {
-        throw new TypeError("ToPromise called on a constructor which does not pass a callable resolve argument.");
-    }
-
-    resolve.call(undefined, x);
-    return deferred["[[Promise]]"];
-}
-
-//////
-// Of dubious quality (not yet fine-tooth--combed).
-
-
-
-function Resolve(p, x) {
-    if (IsResolved(p)) {
+function PromiseResolve(promise, resolution) {
+    if (get_slot(promise, "[[PromiseStatus]]") !== "pending") {
         return;
     }
 
+    let reactions = get_slot(promise, "[[ResolveReactions]]");
+    set_slot(promise, "[[Resolution]]", resolution);
+    set_slot(promise, "[[ResolveReactions]]", undefined);
+    set_slot(promise, "[[RejectReactions]]", undefined);
+    set_slot(promise, "[[PromiseStatus]]", "has-resolution");
+    TriggerPromiseReactions(reactions, resolution);
+}
+
+function ThenableToPromise(C, x) {
     if (IsPromise(x)) {
-        if (SameValue(p, x)) {
-            let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
-            SetReason(p, selfResolutionError);
-        } else if (get_slot(x, "[[Following]]") !== undefined) {
-            set_slot(p, "[[Following]]", get_slot(x, "[[Following]]"));
-            get_slot(get_slot(x, "[[Following]]"), "[[Derived]]").push({
-                "[[DerivedPromise]]": p,
-                "[[OnFulfilled]]": undefined,
-                "[[OnRejected]]": undefined
-            });
-        } else if (get_slot(x, "[[HasValue]]") === true) {
-            SetValue(p, get_slot(x, "[[Value]]"));
-        } else if (get_slot(x, "[[HasReason]]") === true) {
-            SetReason(p, get_slot(x, "[[Reason]]"));
-        } else {
-            set_slot(p, "[[Following]]", x);
-            get_slot(x, "[[Derived]]").push({
-                "[[DerivedPromise]]": p,
-                "[[OnFulfilled]]": undefined,
-                "[[OnRejected]]": undefined
-            });
-        }
-    } else {
-        SetValue(p, x);
+        return x;
     }
-}
 
-function UpdateDerived(derived, originator) {
-    assert((get_slot(originator, "[[HasValue]]") === true && get_slot(originator, "[[HasReason]]") === false) ||
-           (get_slot(originator, "[[HasValue]]") === false && get_slot(originator, "[[HasReason]]") === true));
-
-    if (get_slot(originator, "[[HasValue]]") === true) {
-        if (TypeIsObject(get_slot(originator, "[[Value]]"))) {
-            QueueAMicrotask(function () {
-                if (ThenableCoercions.has(get_slot(originator, "[[Value]]"))) {
-                    let coercedAlready = ThenableCoercions.get(get_slot(originator, "[[Value]]"));
-                    UpdateDerivedFromPromise(derived, coercedAlready);
-                } else {
-                    let then = UNSET;
-                    try {
-                        then = Get(get_slot(originator, "[[Value]]"), "then");
-                    } catch (e) {
-                        UpdateDerivedFromReason(derived, e);
-                    }
-
-                    if (then !== UNSET) {
-                        if (IsCallable(then)) {
-                            let coerced = CoerceThenable(get_slot(originator, "[[Value]]"), then);
-                            UpdateDerivedFromPromise(derived, coerced);
-                        } else {
-                            UpdateDerivedFromValue(derived, get_slot(originator, "[[Value]]"));
-                        }
-                    }
-                }
-            });
-        } else {
-            UpdateDerivedFromValue(derived, get_slot(originator, "[[Value]]"));
-        }
-    } else {
-        UpdateDerivedFromReason(derived, get_slot(originator, "[[Reason]]"));
+    if (!TypeIsObject(x)) {
+        return x;
     }
-}
 
-function UpdateDerivedFromValue(derived, value) {
-    if (IsCallable(derived["[[OnFulfilled]]"])) {
-        CallHandler(derived["[[DerivedPromise]]"], derived["[[OnFulfilled]]"], value);
-    } else {
-        SetValue(derived["[[DerivedPromise]]"], value);
+    let deferred = GetDeferred(C);
+
+    let then;
+    try {
+        then = Get(x, "then");
+    } catch (thenE) {
+        return RejectIfAbrupt(thenE, deferred);
     }
-}
 
-function UpdateDerivedFromReason(derived, reason) {
-    if (IsCallable(derived["[[OnRejected]]"])) {
-        CallHandler(derived["[[DerivedPromise]]"], derived["[[OnRejected]]"], reason);
-    } else {
-        SetReason(derived["[[DerivedPromise]]"], reason);
-    }
-}
-
-function UpdateDerivedFromPromise(derived, promise) {
-    if (get_slot(promise, "[[HasValue]]") === true || get_slot(promise, "[[HasReason]]") === true) {
-        UpdateDerived(derived, promise);
-    } else {
-        get_slot(promise, "[[Derived]]").push(derived);
-    }
-}
-
-function CoerceThenable(thenable, then) {
-    // Missing assert: execution context stack is empty. Very hard to test; maybe could use `(new Error()).stack`?
-
-    let p = PromiseCreate();
-
-    let resolve = function (x) {
-        Resolve(p, x);
-    }
-    let reject = function (r) {
-        Reject(p, r);
+    if (IsCallable(then) === false) {
+        return x;
     }
 
     try {
-        then.call(thenable, resolve, reject);
-    } catch (e) {
-        Reject(p, e);
+        then.call(x, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
+    } catch (thenCallResultE) {
+        return RejectIfAbrupt(thenCallResultE, deferred);
     }
-
-    ThenableCoercions.set(thenable, p);
-
-    return p;
+    return deferred["[[Promise]]"];
 }
 
-function CallHandler(derivedPromise, handler, argument) {
-    QueueAMicrotask(function () {
-        let v = UNSET;
+function TriggerPromiseReactions(reactions, argument) {
+    reactions.forEach(function (reaction) {
+        QueueAMicrotask(function () {
+            Call(reaction, argument);
+        })
+    });
+}
+
+// ## Built-in Functions for Promise Objects
+
+function make_PromiseReactionFunction() {
+    let F = function (x) {
+        let deferred = get_slot(F, "[[Deferred]]");
+        let handler = get_slot(F, "[[Handler]]");
+
+        let handlerResult;
+        try {
+            handlerResult = handler.call(undefined, x);
+        } catch (handlerResultE) {
+            Call(deferred["[[Reject]]"], handlerResultE);
+            return;
+        }
+
+        if (!TypeIsObject(handlerResult)) {
+            Call(deferred["[[Resolve]]"], handlerResult);
+            return;
+        }
+
+        if (SameValue(handlerResult, deferred["[[Promise]]"]) === true) {
+            let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
+            Call(deferred["[[Reject]]"], selfResolutionError);
+        }
+
+        let then;
+        try {
+            then = Get(handlerResult, "then");
+        } catch (thenE) {
+            Call(deferred["[[Reject]]"], thenE);
+            return;
+        }
+
+        if (IsCallable(then) === false) {
+            Call(deferred["[[Resolve]]"], handlerResult);
+            return;
+        }
 
         try {
-            v = handler(argument);
-        } catch (e) {
-            Reject(derivedPromise, e);
+            then.call(handlerResult, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
+        } catch (thenCallResultE) {
+            Call(deferred["[[Reject]]"], thenCallResultE);
+        }
+    };
+
+    make_slots(F, ["[[Deferred]]", "[[Handler]]"]);
+
+    return F;
+}
+
+function make_PromiseResolutionHandlerFunction() {
+    let F = function (x) {
+        let C = get_slot(F, "[[PromiseConstructor]]");
+        let fulfillmentHandler = get_slot(F, "[[FulfillmentHandler]]");
+        let rejectionHandler = get_slot(F, "[[RejectionHandler]]");
+
+        let coerced = ThenableToPromise(C, x);
+        if (IsPromise(coerced)) {
+            return coerced.then(fulfillmentHandler, rejectionHandler);
         }
 
-        if (v !== UNSET) {
-            Resolve(derivedPromise, v);
-        }
-    });
+        return fulfillmentHandler(x);
+    };
+
+    make_slots(F, ["[[PromiseConstructor]]", "[[FulfillmentHandler]]", "[[RejectionHandler]]"]);
+
+    return F;
 }
 
 // ## The Promise Constructor
@@ -279,60 +206,36 @@ function Promise(resolver) {
         throw new TypeError("Promise constructor called on non-object");
     }
 
-    if (!has_slot(promise, "[[IsPromise]]")) {
+    if (!has_slot(promise, "[[PromiseStatus]]")) {
         throw new TypeError("Promise constructor called on an object not initialized as a promise.");
     }
 
-    if (get_slot(promise, "[[IsPromise]]") !== undefined) {
+    if (get_slot(promise, "[[PromiseStatus]]") !== undefined) {
         throw new TypeError("Promise constructor called on a promise that has already been constructed.");
     }
 
-    return PromiseInitialise(promise, resolver);
-}
-
-// ### Abstract Operations for the Promise Constructor
-
-function PromiseAlloc(constructor) {
-    // This is basically OrdinaryCreateFromConstructor(...).
-    let obj = Object.create(Promise.prototype);
-    make_slots(obj, ["[[IsPromise]]", "[[PromiseConstructor]]", "[[Derived]]", "[[Following]]", "[[Value]]",
-                     "[[HasValue]]", "[[Reason]]", "[[HasReason]]"]);
-
-    set_slot(obj, "[[PromiseConstructor]]", constructor);
-
-    return obj;
-}
-
-function PromiseInitialise(obj, resolver) {
     if (!IsCallable(resolver)) {
         throw new TypeError("Promise constructor called with non-callable resolver function");
     }
 
-    set_slot(obj, "[[IsPromise]]", true);
-    set_slot(obj, "[[Derived]]", []);
-    set_slot(obj, "[[HasValue]]", false);
-    set_slot(obj, "[[HasReason]]", false);
+    set_slot(promise, "[[PromiseStatus]]", "pending");
+    set_slot(promise, "[[ResolveReactions]]", []);
+    set_slot(promise, "[[RejectReactions]]", []);
 
     let resolve = function (x) {
-        Resolve(obj, x);
+        PromiseResolve(promise, x);
     };
     let reject = function (r) {
-        Reject(obj, r);
+        PromiseReject(promise, r);
     };
 
     try {
         resolver.call(undefined, resolve, reject);
     } catch (e) {
-        Reject(obj, e);
+        PromiseReject(promise, e);
     }
 
-    return obj;
-}
-
-function PromiseCreate() {
-    let obj = PromiseAlloc(PercentPromisePercent);
-    let resolver = function () { };
-    return PromiseInitialise(obj, resolver);
+    return promise;
 }
 
 // ## Properties of the Promise constructor
@@ -340,7 +243,16 @@ function PromiseCreate() {
 Object.defineProperty(Promise, "@@create", {
     value: function () {
         let F = this;
-        return PromiseAlloc(F);
+
+        // This is basically OrdinaryCreateFromConstructor(...).
+        let obj = Object.create(Promise.prototype);
+
+        make_slots(obj, ["[[PromiseStatus]]", "[[PromiseConstructor]]", "[[Resolution]]", "[[Reason]]",
+                         "[[ResolveReactions]]", "[[RejectReactions]]"]);
+
+        set_slot(obj, "[[PromiseConstructor]]", F);
+
+        return obj;
     },
     writable: false,
     enumerable: false,
@@ -350,24 +262,14 @@ Object.defineProperty(Promise, "@@create", {
 define_method(Promise, "resolve", function (x) {
     let C = this;
     let deferred = GetDeferred(C);
-    let resolve = deferred["[[Resolve]]"];
-    if (IsCallable(resolve) === false) {
-        throw new TypeError("Tried to construct a resolved promise from a constructor which does not pass a callable " +
-                            "resolve argument.");
-    }
-    resolve.call(undefined, x);
+    Call(deferred["[[Resolve]]"], x);
     return deferred["[[Promise]]"];
 });
 
 define_method(Promise, "reject", function (r) {
     let C = this;
     let deferred = GetDeferred(C);
-    let reject = deferred["[[Reject]]"];
-    if (IsCallable(reject) === false) {
-        throw new TypeError("Tried to construct a rejected promise from a constructor which does not pass a callable " +
-                            "reject argument.");
-    }
-    reject.call(undefined, r);
+    Call(deferred["[[Reject]]"], r);
     return deferred["[[Promise]]"];
 });
 
@@ -397,10 +299,6 @@ define_method(Promise, "all", function (iterable) {
     let index = 0;
 
     let resolve = deferred["[[Resolve]]"];
-    if (IsCallable(resolve) === false) {
-        throw new TypeError("Cannot perform the all operation on a promise constructor which does not pass a " +
-                            "callable resolve argument.");
-    }
 
     for (let nextValue of iterable) {
         let nextPromise = ToPromise(C, nextValue);
@@ -433,7 +331,47 @@ define_method(Promise, "all", function (iterable) {
 });
 
 define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
-    return Then(this, onFulfilled, onRejected);
+    let promise = this;
+    let C = Get(promise, "constructor");
+    let deferred = GetDeferred(C);
+
+    let rejectionHandler = deferred["[[Reject]]"];
+    if (IsCallable(onRejected)) {
+        rejectionHandler = onRejected;
+    }
+
+    let fulfillmentHandler = deferred["[[Resolve]]"];
+    if (IsCallable(onFulfilled)) {
+        fulfillmentHandler = onFulfilled;
+    }
+    let resolutionHandler = make_PromiseResolutionHandlerFunction();
+    set_slot(resolutionHandler, "[[PromiseConstructor]]", C);
+    set_slot(resolutionHandler, "[[FulfillmentHandler]]", fulfillmentHandler);
+    set_slot(resolutionHandler, "[[RejectionHandler]]", rejectionHandler);
+
+    let resolutionReaction = MakePromiseReactionFunction(deferred, resolutionHandler);
+    let rejectionReaction = MakePromiseReactionFunction(deferred, rejectionHandler);
+
+    if (get_slot(promise, "[[PromiseStatus]]") === "pending") {
+        get_slot(promise, "[[ResolveReactions]]").push(resolutionReaction);
+        get_slot(promise, "[[RejectReactions]]").push(rejectionReaction);
+    }
+
+    if (get_slot(promise, "[[PromiseStatus]]") === "has-resolution") {
+        QueueAMicrotask(function () {
+            let resolution = get_slot(promise, "[[Resolution]]");
+            Call(resolutionReaction, resolution);
+        });
+    }
+
+    if (get_slot(promise, "[[PromiseStatus]]") === "has-rejection") {
+        QueueAMicrotask(function () {
+            let reason = get_slot(promise, "[[Reason]]");
+            Call(rejectionReaction, reason);
+        });
+    }
+
+    return deferred["[[Promise]]"];
 });
 
 define_method(Promise.prototype, "catch", function (onRejected) {
@@ -480,10 +418,19 @@ function ES6New(Constructor) {
     return Constructor.apply(Constructor["@@create"](), Array.prototype.slice.call(arguments, 1));
 }
 
+function RejectIfAbrupt(argument, deferred) {
+    // Usage: pass it exceptions; it only handles that case.
+    // Always use `return` before it, i.e. `try { ... } catch (e) { return RejectIfAbrupt(e, deferred); }`.
+    Call(deferred["[[Reject]]"], argument);
+    return deferred["[[Promise]]"];
+}
+
+function Call(function_, argument) {
+    function_.call(undefined, argument);
+}
+
 //////
 // Internal helpers (for clarity)
-
-let UNSET = {};
 
 function define_method(object, methodName, method) {
     Object.defineProperty(object, methodName, {

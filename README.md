@@ -1,28 +1,10 @@
 # Promise Objects
 
-This repository is meant to fully flesh out a subset of the "AP2" promise consensus developed over the last month on es-discuss. In particular, it provides the subset the DOM needs as soon as possible, omitting `flatMap` and `accept` for now but building a conceptual foundation that would allow them to be added at a later date.
+This repository is meant to fully flesh out a subset of the "AP2" promise consensus developed over the last month on es-discuss. In particular, it provides the subset the DOM needs as soon as possible, omitting `flatMap` for now but building a conceptual foundation that would allow it to be added at a later date.
 
 It is meant to succeed the current [DOM Promises](http://dom.spec.whatwg.org/#promises) spec, and fixes a number of bugs in that spec while also changing some of the exposed APIs and behavior to make it more forward-compatible with the full AP2 consensus.
 
-## The ThenableCoercions Weak Map
-
-To successfully and consistently assimilate thenable objects into real promises, an implementation must maintain a weak map of thenables to promises. Notably, both the keys and values must be weakly stored. Since this weak map is not directly exposed, it does not need to be a true ECMAScript weak map, with the accompanying prototype and such. However, we refer to it using ECMAScript notation in this spec, i.e.:
-
-- `ThenableCoercions.has(thenable)`
-- `ThenableCoercions.get(thenable)`
-- `ThenableCoercions.set(thenable, promise)`
-
 ## Record Types for Promise Objects
-
-### The Derived Promise Transform Specification Type
-
-The Derived Promise Transform type is used to encapsulate promises which are derived from a given promise, optionally including fulfillment or rejection handlers that will be used to transform the derived promise relative to the originating promise. They are stored in a promise's [[Derived]] internal data property until one of [[HasValue]] or [[HasReason]] becomes **true**, at which time changes propagate to all derived promise transforms in the list and the list is cleared.
-
-Derived promise transforms are Records composed of three named fields:
-
-- [[DerivedPromise]]: the derived promise in need of updating.
-- [[OnFulfilled]]: the fulfillment handler to be used as a transformation, if the originating promise becomes fulfilled.
-- [[OnRejected]]: the rejection handler to be used as a transformation, if the originating promise becomes rejected.
 
 ### The Deferred Specification Type
 
@@ -38,13 +20,15 @@ Deferreds are Records composed of three named fields:
 
 ### GetDeferred ( C )
 
-The absract operation GetDeferred takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
+The abstract operation GetDeferred takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
 
 1. If IsConstructor(_C_) is **false**, throw a **TypeError**.
 1. Let `resolver(passedResolve, passedReject)` be an ECMAScript function that lets _resolve_ be `passedResolve` and _reject_ be `passedReject`.
 1. Let _promise_ be the result of calling the [[Construct]] internal method of _C_ with an argument list containing the single item _resolver_.
 1. ReturnIfAbrupt(_promise_).
 1. If IsPromise(_promise_) is **false**, throw a **TypeError**.
+1. If IsCallable(_resolve_) is **false**, throw a **TypeError**.
+1. If IsCallable(_reject_) is **false**, throw a **TypeError**.
 1. Return the Deferred { [[Promise]]: _promise_, [[Resolve]]: _resolve_, [[Reject]]: _reject_ }.
 
 ### IsPromise ( x )
@@ -52,176 +36,120 @@ The absract operation GetDeferred takes a potential constructor function, and at
 The abstract operation IsPromise checks for the promise brand on an object.
 
 1. If Type(_x_) is not Object, return **false**.
-1. If _x_ does not have an [[IsPromise]] internal data property, return **false**.
-1. If the value of _x_'s [[IsPromise]] internal data property is **true**, return **true**; otherwise, return **false**.
+1. If _x_ does not have a [[PromiseStatus]] internal data property, return **false**.
+1. If the value of _x_'s [[PromiseStatus]] internal data property is **undefined**, return **false**.
+1. Return **true**.
 
-### IsResolved ( p )
+### MakePromiseReactionFunction ( deferred, handler )
 
-The abstract operation IsResolved checks for whether a promise's fate is resolved.
+The abstract operation MakePromiseReactionFunction creates a promise reaction function with internal slots initialized to the passed arguments.
 
-1. If _p_'s internal data property [[Following]] is not **undefined**, return **true**.
-1. If _p_'s internal data property [[HasValue]] is **true**, return **true**.
-1. If _p_'s internal data property [[HasReason]] is **true**, return **true**.
-1. Return **false**.
+1. Let _F_ be a new built-in function object as defined in Promise Reaction Functions.
+1. Set the [[Deferred]] internal data property of _F_ to _deferred_.
+1. Set the [[Handler]] internal data property of _F_ to _handler_.
+1. Return _F_.
 
-### PropagateToDerived ( p )
+### PromiseReject ( promise, reason )
 
-The abstract operation PropagateToDerived propagates a promise's value or reason to all of its derived promises.
+The abstract operation PromiseReject rejects a promise with a reason.
 
-1. Assert: exactly one of _p_'s [[HasValue]] internal data property and _p_'s [[HasReason]] internal data property is **true**.
-1. Let _deriveds_ be the List that is the value of _p_'s [[Derived]] internal data property.
-1. Repeat for each _derived_ that is an element of _deriveds_, in original insertion order
-   1. Let _result_ be the result of calling UpdateDerived(_derived_, _p_).
-   1. ReturnIfAbrupt(_result_).
-1. Set the value of _p_'s [[Derived]] internal data property to a new empty List.
+1. If the value of _promise_'s internal data property [[PromiseStatus]] is not `"pending"`, return.
+1. Let _reactions_ be the value of _promise_'s [[RejectReactions]] internal data property.
+1. Set the value of _promise_'s [[Reason]] internal data property to _reason_.
+1. Set the value of _promise_'s [[ResolveReactions]] internal data property to **undefined**.
+1. Set the value of _promise_'s [[RejectReactions]] internal data property to **undefined**.
+1. Set the value of _promise_'s [[PromiseStatus]] internal data property to `"has-rejection"`.
+1. Call TriggerPromiseReactions(_reactions_, _reason_).
 
-### Reject ( p , r )
+### PromiseResolve ( promise, resolution )
 
-The abstract operation Reject rejects a promise with a reason.
+The abstract operation PromiseResolve resolves a promise with a value.
 
-1. If IsResolved(_p_), return.
-1. Return the result of calling SetReason(_p_, _r_).
+1. If the value of _promise_'s internal data property [[PromiseStatus]] is not `"pending"`, return.
+1. Let _reactions_ be the value of _promise_'s [[ResolveReactions]] internal data property.
+1. Set the value of _promise_'s [[Resolution]] internal data property to _resolution_.
+1. Set the value of _promise_'s [[ResolveReactions]] internal data property to **undefined**.
+1. Set the value of _promise_'s [[RejectReactions]] internal data property to **undefined**.
+1. Set the value of _promise_'s [[PromiseStatus]] internal data property to `"has-resolution"`.
+1. Call TriggerPromiseReactions(_reactions_, _resolution_).
 
-### SetReason ( p , reason )
+### ThenableToPromise ( C, x )
 
-The abstract operation SetReason encapsulates the process of setting a promise's reason and then propagating this to any derived promises.
+The abstract operation ThenableToPromise takes a value _x_ and tests if it is a non-promise thenable. If so, it returns a promise derived from that thenable and constructed with the constructor _C_; otherwise, it returns the value back.
 
-1. Assert: the value of _p_'s [[HasValue]] internal data property is **false**.
-1. Assert: the value of _p_'s [[HasReason]] internal data property is **false**.
-1. Set the value of the [[Reason]] internal data property of _p_ to _reason_.
-1. Set the value of the [[HasReason]] internal data property of _p_ to **true**.
-1. Set the value of the [[Following]] internal data property of _p_ to **undefined**.
-1. Return the result of calling PropagateToDerived(_p_).
-
-### SetValue ( p , value )
-
-The abstract operation SetValue encapsulates the process of setting a promise's value and then propagating this to any derived promises.
-
-1. Assert: the value of _p_'s [[HasValue]] internal data property is **false**.
-1. Assert: the value of _p_'s [[HasReason]] internal data property is **false**.
-1. Set the value of the [[Value]] internal data property of _p_ to _value_.
-1. Set the value of the [[HasValue]] internal data property of _p_ to **true**.
-1. Set the value of the [[Following]] internal data property of _p_ to **undefined**.
-1. Return the result of calling PropagateToDerived(_p_).
-
-### Then ( p, onFulfilled, onRejected )
-
-The abstract operation Then queues up fulfillment and/or rejection handlers on a promise for when it becomes fulfilled or rejected, or schedules them to be called in the next microtask if the promise is already fulfilled or rejected. It returns a derived promise, transformed by the passed handlers.
-
-1. Let _following_ be the value of _p_'s [[Following]] internal data property.
-1. If _following_ is not **undefined**, return the result of calling Then(_following_, _onFulfilled_, _onRejected_).
-1. Let _C_ be the result of calling Get(_p_, "constructor").
+1. If IsPromise(_x_) is **true**, return _x_.
+1. If Type(_x_) is not Object, return _x_.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_C_).
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _returnedPromise_ be _deferred_.[[Promise]].
-1. Let _derived_ be the Derived Promise Transform { [[DerivedPromise]]: _returnedPromise_, [[OnFulfilled]]: onFulfilled, [[OnRejected]]: onRejected }.
-1. Let _result_ be the result of calling UpdateDerivedFromPromise(_derived_, _p_).
-1. ReturnIfAbrupt(_result_).
-1. Return _returnedPromise_.
-
-### ToPromise ( C , x )
-
-The abstract operation ToPromise coerces its argument to a promise, ensuring it is of the specified constructor _C_, or returns the argument if it is already a promise matching that constructor.
-
-1. If IsPromise(_x_) is **true**,
-   1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal data property.
-   1. If SameValue(_constructor_, _C_) is **true**, return _x_.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _resolve_ be _deferred_.[[Resolve]].
-1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
-1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
-1. ReturnIfAbrupt(_result_).
+1. Let _then_ be the result of calling Get(_x_, `"then"`).
+1. RejectIfAbrupt(_then_, _deferred_).
+1. If IsCallable(_then_) is **false**, return _x_.
+1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a list containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
+1. RejectIfAbrupt(_thenCallResult_, _deferred_).
 1. Return _deferred_.[[Promise]].
 
-### Resolve ( p , x )
+### TriggerPromiseReactions ( reactions, argument )
 
-The operator `Resolve` resolves a promise with a value.
+The abstract operation TriggerPromiseReactions takes a collection of functions to trigger in the next microtask, and calls them, passing each the given argument. Typically, these reactions will modify a previously-returned promise, possibly calling in to a user-supplied handler before doing so.
 
-1. If `IsResolved(p)`, return.
-1. If `IsPromise(x)` is `true`,
-   1. If `SameValue(p, x)`,
-      1. Let `selfResolutionError` be a newly-created `TypeError` object.
-      1. Call `SetReason(p, selfResolutionError)`.
-   1. Otherwise, if `x.[[Following]]` is not `undefined`,
-      1. Set `p.[[Following]]` to `x.[[Following]]`.
-      1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Following]].[[Derived]]`.
-   1. Otherwise, if `x.[[HasValue]]` is `true`, call `SetValue(p, x.[[Value]])`.
-   1. Otherwise, if `x.[[HasReason]]` is `true`, call `SetReason(p, x.[[Reason]])`.
-   1. Otherwise,
-      1. Set `p.[[Following]]` to `x`.
-      1. Append `{ [[DerivedPromise]]: p, [[OnFulfilled]]: undefined, [[OnRejected]]: undefined }` as the last element of `x.[[Derived]]`.
-1. Otherwise, call `SetValue(p, x)`.
+1. Repeat for each _reaction_ in _reactions_, in original insertion order
+    1. Queue a microtask to:
+        1. Call(_reaction_, _argument_).
 
-### UpdateDerived ( derived , originator )
+## Built-in Functions for Promise Objects
 
-The operator `UpdateDerived` propagates a promise's state to a single derived promise using any relevant transforms.
+### Promise Reaction Functions
 
-1. Assert: exactly one of `originator.[[HasValue]]` and `originator.[[HasReason]]` is `true`.
-1. If `originator.[[HasValue]]` is `true`,
-   1. If `Type(originator.[[Value]])` is `Object`, queue a microtask to run the following:
-      1. If `ThenableCoercions.has(originator.[[Value]])`,
-         1. Let `coercedAlready` be `ThenableCoercions.get(originator.[[Value]])`.
-         1. Call `UpdateDerivedFromPromise(derived, coercedAlready)`.
-      1. Otherwise,
-         1. Let `thenResult` be `Get(originator.[[Value]], "then")`.
-         1. If `thenResult` is an abrupt completion, call `UpdateDerivedFromReason(derived, thenResult.[[value]])`.
-         1. Otherwise, if `IsCallable(thenResult.[[value]])`,
-             1. Let `coerced` be `CoerceThenable(originator.[[Value]], thenResult.[[value]])`.
-             1. Call `UpdateDerivedFromPromise(derived, coerced)`.
-         1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
-   1. Otherwise, call `UpdateDerivedFromValue(derived, originator.[[Value]])`.
-1. Otherwise, call `UpdateDerivedFromReason(derived, originator.[[Reason]])`.
+A promise reaction function is an anonymous function that applies the appropriate handler to the incoming value, and uses the handler's return value to resolve or reject the derived promise associated with that handler.
 
-### UpdateDerivedFromValue ( derived , value )
+Each promise reaction function has [[Deferred]] and [[Handler]] slots.
 
-The operator `UpdateDerivedFromValue` propagates a value to a derived promise, using the relevant `onFulfilled` transform if it is callable.
+When a promise reaction function _F_ is called with argument _x_, the following steps are taken:
 
-1. If `IsCallable(derived.[[OnFulfilled]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnFulfilled]], value)`.
-1. Otherwise, call `SetValue(derived.[[DerivedPromise]], value)`.
+1. Let _deferred_ be the value of _F_'s [[Deferred]] internal slot.
+1. Let _handler_ be the value of _F_'s [[Handler]] internal slot.
+1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
+1. If _handlerResult_ is an abrupt completion,
+    1. Call(_deferred_.[[Reject]], _handlerResult_.[[value]]).
+    1. Return.
+1. Let _handlerResult_ be _handlerResult_.[[value]].
+1. If Type(_handlerResult_) is not Object,
+    1. Call(_deferred_.[[Resolve]], _handlerResult_).
+    1. Return.
+1. If SameValue(_handlerResult_, _deferred_.[[Promise]]) is **true**,
+    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
+    1. Call(_deferred_.[[Reject]], _selfResolutionError_).
+1. Let _then_ be the result of calling Get(_handlerResult_, `"then"`).
+1. If _then_ is an abrupt completion,
+    1. Call(_deferred_.[[Reject]], _then_.[[value]]).
+    1. Return.
+1. Let _then_ be _then_.[[value]].
+1. If IsCallable(_then_) is **false**,
+    1. Call(_deferred_.[[Resolve]], _handlerResult_).
+    1. Return.
+1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _handlerResult_ as _thisArgument_ and a list containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
+1. If _thenCallResult_ is an abrupt completion,
+    1. Call(_deferred_.[[Reject]], _then_.[[value]]).
+    1. Return.
 
-### UpdateDerivedFromReason ( derived , reason )
+### Promise Resolution Handler Functions
 
-The operator `UpdateDerivedFromReason` propagates a reason to a derived promise, using the relevant `onRejected` transform if it is callable.
+A promise resolution handler function is an anonymous function that has the ability to handle a promise being resolved, by "unwrapping" any incoming values until they are no longer promises or thenables and can be passed to the appropriate fulfillment handler.
 
-1. If `IsCallable(derived.[[OnRejected]])`, call `CallHandler(derived.[[DerivedPromise]], derived.[[OnRejected]], reason)`.
-1. Otherwise, call `SetReason(derived.[[DerivedPromise]], reason)`.
+Each promise resolution handler function has [[PromiseConstructor]], [[FulfillmentHandler]], and [[RejectionHandler]] slots.
 
-### UpdateDerivedFromPromise ( derived , promise )
+When a promise resolution handler function _F_ is called with argument _x_, the following steps are taken:
 
-The operator `UpdateDerivedFromPromise` propagates one promise's state to the derived promise, using the relevant transform if it is callable.
-
-1. If `promise.[[HasValue]]` is `true` or `promise.[[HasReason]]` is `true`, call `UpdateDerived(derived, promise)`.
-1. Otherwise, append `derived` as the last element of `promise.[[Derived]]`.
-
-### CallHandler ( derivedPromise , handler , argument )
-
-The operator `CallHandler` applies a transformation to a value or reason and uses it to update a derived promise.
-
-1. Queue a microtask to do the following:
-   1. Let `result` be `handler.[[Call]](undefined, (argument))`.
-   1. If `result` is an abrupt completion, call `Reject(derivedPromise, result.[[value]])`.
-   1. Otherwise, call `Resolve(derivedPromise, result.[[value]])`.
-
-### CoerceThenable ( thenable , then )
-
-The operator `CoerceThenable` takes a "thenable" object whose `then` method has been extracted and creates a promise from it. It memoizes its results so as to avoid getting inconsistent answers in the face of ill-behaved thenables; the memoized results are later checked by `UpdateDerived`.
-
-1. Assert: `Type(thenable)` is `Object`.
-1. Assert: `IsCallable(then)`.
-1. Assert: the execution context stack is empty.
-1. Let `p` be the result of calling PromiseCreate().
-1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(p, x)`.
-1. Let `reject(r)` be an ECMAScript function that calls `Reject(p, r)`.
-1. Let `result` be `then.[[Call]](thenable, (resolve, reject))`.
-1. If `result` is an abrupt completion, call `Reject(p, result.[[value]])`.
-1. Call `ThenableCoercions.set(thenable, p)`.
-1. Return `p`.
+1. Let _C_ be the value of _F_'s [[PromiseConstructor]] internal slot.
+1. Let _fulfillmentHandler_ be the value of _F_'s [[FulfillmentHandler]] internal slot.
+1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
+1. Let _coerced_ be the result of calling ThenableToPromise(_C_, _x_).
+1. If IsPromise(_coerced_) is **true**, return the result of calling Invoke(_coerced_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
+1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
 
 ## The Promise Constructor
 
-The Promise constructor is the %Promise% intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initiializes its **this** value with the internal state necessary to support the `Promise.prototype` methods.
+The Promise constructor is the %Promise% intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initializes its **this** value with the internal state necessary to support the `Promise.prototype` methods.
 
 The `Promise` constructor is designed to be subclassable. It may be used as the value of an `extends` clause of a class declaration. Subclass constructors that intended to inherit the specified `Promise` behavior must include a `super` call to the `Promise` constructor.
 
@@ -229,9 +157,17 @@ The `Promise` constructor is designed to be subclassable. It may be used as the 
 
 1. Let _promise_ be the **this** value.
 1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
-1. If _promise_ does not have an [[IsPromise]] internal data property, then throw a **TypeError** exception.
-1. If _promise_'s [[IsPromise]] internal data property is not **undefined**, then throw a **TypeError** exception.
-1. Return the result of calling PromiseInitialise(_promise_, _resolver_).
+1. If _promise_ does not have a [[PromiseStatus]] internal data property, then throw a **TypeError** exception.
+1. If _promise_'s [[PromiseStatus]] internal data property is not **undefined**, then throw a **TypeError** exception.
+1. If IsCallable(_resolver_) is **false**, then throw a **TypeError** exception.
+1. Set _promise_'s [[PromiseStatus]] internal data property to `"pending"`.
+1. Set _promise_'s [[ResolveReactions]] internal data property to a new empty List.
+1. Set _promise_'s [[RejectReactions]] internal data property to a new empty List.
+1. Let `resolve(x)` be an ECMAScript function that calls `PromiseResolve(promise, x)`.
+1. Let `reject(r)` be an ECMAScript function that calls `PromiseReject(promise, r)`.
+1. Let _result_ be the result of calling the [[Call]] internal method of _resolver_ with **undefined** as _thisArgument_ and a List containing _resolve_ and _reject_ as _argumentsList_.
+1. If _result_ is an abrupt completion, call PromiseReject(_promise_, _result_.[[value]]).
+1. Return _promise_.
 
 ### new Promise ( ... argumentsList )
 
@@ -245,42 +181,14 @@ When `Promise` is called as part of a `new` expression it is a constructor: it i
 
 If Promise is implemented as an ordinary function object, its [[Construct]] internal method will perform the above steps.
 
-### Abstract Operations for the Promise Constructor
-
-#### PromiseAlloc ( constructor )
-
-1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_constructor_, "%PromisePrototype%", ([[IsPromise]], [[PromiseConstructor]], [[Derived]], [[Following]], [[Value]], [[HasValue]], [[Reason]], [[HasReason]])).
-1. Set _obj_'s [[PromiseConstructor]] internal data property to _constructor_.
-1. Return _obj_.
-
-#### PromiseInitialise ( obj, resolver )
-
-1. If IsCallable(_resolver_) is **false**, then throw a **TypeError** exception.
-1. Set _obj_'s [[IsPromise]] internal data property to **true**.
-1. Set _obj_'s [[Derived]] internal data property to a new empty List.
-1. Set _obj_'s [[HasValue]] internal data property to **false**.
-1. Set _obj_'s [[HasReason]] internal data property to **false**.
-1. Let `resolve(x)` be an ECMAScript function that calls `Resolve(obj, x)`.
-1. Let `reject(r)` be an ECMAScript function that calls `Reject(obj, r)`.
-1. Let _result_ be the result of calling the [[Call]] internal method of _resolver_ with **undefined** as _thisArgument_ and a List containing _resolve_ and _reject_ as _argumentsList_.
-1. If _result_ is an abrupt completion, call Reject(obj, _result_.[[value]]).
-1. Return _obj_.
-
-#### PromiseCreate ( )
-
-The abstract operation PromiseCreate is used by the specification to create new promise objects in the pending state.
-
-1. Let _obj_ be the result of calling PromiseAlloc(%Promise%).
-1. ReturnIfAbrupt(_obj_).
-1. Let _resolver_ be a new, empty ECMAScript function object.
-1. Return the result of calling PromiseInitialise(_obj_, _resolver_).
-
 ## Properties of the Promise Constructor
 
 ### Promise \[ @@create \] ( )
 
 1. Let _F_ be the **this** value.
-1. Return the result of calling PromiseAlloc(_F_).
+1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_constructor_, "%PromisePrototype%", ([[PromiseStatus]], [[PromiseConstructor]], [[Resolution]], [[Reason]], [[ResolveReactions]], [[RejectReactions]])).
+1. Set _obj_'s [[PromiseConstructor]] internal data property to _F_.
+1. Return _obj_.
 
 This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **true** }.
 
@@ -291,34 +199,31 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Let _resolve_ be _deferred_.[[Resolve]].
-1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
 1. Let _iterator_ be the result of calling GetIterator(_iterable_).
 1. RejectIfAbrupt(_iterator_, _deferred_).
 1. Let _values_ be the result of calling ArrayCreate(0).
 1. Let _countdown_ be 0.
 1. Let _index_ be 0.
 1. Repeat
-   1. Let _next_ be the result of calling IteratorStep(_iterator_).
-   1. RejectIfAbrupt(_next_, _deferred_).
-   1. If _next_ is **false**,
-      1. If _index_ is 0,
-         1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _values_ as _argumentsList_.
-         1. ReturnIfAbrupt(_result_).
-      1. Return _deferred_.[[Promise]].
-   1. Let _nextValue_ be the result of calling IteratorValue(_next_).
-   1. RejectIfAbrupt(_nextValue_, _deferred_).
-   1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
-   1. RejectIfAbrupt(_nextPromise_, _deferred_).
-   1. Let _currentIndex_ be the current value of _index_.
-   1. Let `onFulfilled(v)` be an ECMAScript function that:
-      1. Calls the [[DefineOwnProperty]] internal method of _values_ with arguments _currentIndex_ and Property Descriptor { [[Value]]: _v_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
-      1. Sets _countdown_ to _countdown_ - 1.
-      1. If _countdown_ is 0, calls `resolve.[[Call]](undefined, (values))`.
-   1. Let _result_ be the result of calling Then(_nextPromise_, _onFulfilled_, _deferred_.[[Reject]]).
-   1. RejectIfAbrupt(_result_, _deferred_).
-   1. Set _index_ to _index_ + 1.
-   1. Set _countdown_ to _countdown_ + 1.
+    1. Let _next_ be the result of calling IteratorStep(_iterator_).
+    1. RejectIfAbrupt(_next_, _deferred_).
+    1. If _next_ is **false**,
+        1. If _index_ is 0,
+            1. Call(_deferred_.[[Resolve]], _values_).
+        1. Return _deferred_.[[Promise]].
+    1. Let _nextValue_ be the result of calling IteratorValue(_next_).
+    1. RejectIfAbrupt(_nextValue_, _deferred_).
+    1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
+    1. RejectIfAbrupt(_nextPromise_, _deferred_).
+    1. Let _currentIndex_ be the current value of _index_.
+    1. Let `onFulfilled(v)` be an ECMAScript function that:
+        1. Calls the [[DefineOwnProperty]] internal method of _values_ with arguments _currentIndex_ and Property Descriptor { [[Value]]: _v_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
+        1. Sets _countdown_ to _countdown_ - 1.
+        1. If _countdown_ is 0, calls `resolve.[[Call]](undefined, (values))`.
+    1. Let _result_ be the result of calling Then(_nextPromise_, _onFulfilled_, _deferred_.[[Reject]]).
+    1. RejectIfAbrupt(_result_, _deferred_).
+    1. Set _index_ to _index_ + 1.
+    1. Set _countdown_ to _countdown_ + 1.
 
 Note: The `all` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
@@ -341,15 +246,15 @@ Note: The `cast` function is an intentionally generic utility method; it does no
 1. Let _iterator_ be the result of calling GetIterator(_iterable_).
 1. RejectIfAbrupt(_iterator_, _deferred_).
 1. Repeat
-   1. Let _next_ be the result of calling IteratorStep(_iterator_).
-   1. RejectIfAbrupt(_next_, _deferred_).
-   1. If _next_ is **false**, return _deferred_.[[Promise]].
-   1. Let _nextValue_ be the result of calling IteratorValue(_next_).
-   1. RejectIfAbrupt(_nextValue_, _deferred_).
-   1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
-   1. RejectIfAbrupt(_nextPromise_, _deferred_).
-   1. Let _result_ be the result of calling Then(_nextPromise_, _deferred_.[[Resolve]], _deferred_.[[Reject]]).
-   1. RejectIfAbrupt(_result_, _deferred_).
+    1. Let _next_ be the result of calling IteratorStep(_iterator_).
+    1. RejectIfAbrupt(_next_, _deferred_).
+    1. If _next_ is **false**, return _deferred_.[[Promise]].
+    1. Let _nextValue_ be the result of calling IteratorValue(_next_).
+    1. RejectIfAbrupt(_nextValue_, _deferred_).
+    1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
+    1. RejectIfAbrupt(_nextPromise_, _deferred_).
+    1. Let _result_ be the result of calling Then(_nextPromise_, _deferred_.[[Resolve]], _deferred_.[[Reject]]).
+    1. RejectIfAbrupt(_result_, _deferred_).
 
 Note: The `race` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
@@ -360,10 +265,7 @@ Note: The `race` function is an intentionally generic utility method; it does no
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Let _reject_ be _deferred_.[[Reject]].
-1. If IsCallable(_reject_) is **false**, throw a **TypeError** exception.
-1. Let _result_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and a list containing _r_ as _argumentsList_.
-1. ReturnIfAbrupt(_result_).
+1. Call(_deferred_.[[Reject]], _r_).
 1. Return _deferred_.[[Promise]].
 
 Note: The `reject` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
@@ -375,17 +277,14 @@ Note: The `reject` function is an intentionally generic factory method; it does 
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Let _resolve_ be _deferred_.[[Resolve]].
-1. If IsCallable(_resolve_) is **false**, throw a **TypeError** exception.
-1. Let _result_ be the result of calling the [[Call]] internal method of _resolve_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
-1. ReturnIfAbrupt(_result_).
+1. Call(_deferred_.[[Resolve]], _x_).
 1. Return _deferred_.[[Promise]].
 
 Note: The `resolve` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
 ## Properties of the Promise Prototype Object
 
-The Promise prototype object is itself an ordinary object. It is not a Promise instance and does not have any of the promise instances' internal data properties, such as [[IsPromise]].
+The Promise prototype object is itself an ordinary object. It is not a Promise instance and does not have any of the promise instances' internal data properties, such as [[PromiseStatus]].
 
 The value of the [[Prototype]] internal data property of the Promise prototype object is the standard built-in Object prototype object.
 
@@ -404,9 +303,32 @@ Note: The `catch` function is intentionally generic; it does not require that it
 
 1. Let _promise_ be the **this** value.
 1. If IsPromise(_promise_) is **false**, throw a **TypeError** exception.
-1. Return the result of calling Then(_promise_, _onFulfilled_, _onRejected_).
+1. Let _C_ be the result of calling Get(_promise_, "constructor").
+1. ReturnIfAbrupt(_C_).
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _rejectionHandler_ be _deferred_.[[Reject]].
+1. If IsCallable(_onRejected_), set _rejectionHandler_ to _onRejected_.
+1. Let _fulfillmentHandler_ be _deferred_.[[Resolve]].
+1. If IsCallable(_onFulfilled_), set _fulfillmentHandler_ to _onFulfilled_.
+1. Let _resolutionHandler_ be a new built-in function object as defined in Promise Resolution Handler Functions.
+1. Set the [[PromiseConstructor]] internal data property of _resolutionHandler_ to _C_.
+1. Set the [[FulfillmentHandler]] internal data property of _resolutionHandler_ to _fulfillmentHandler_.
+1. Set the [[RejectionHandler]] internal data property of _resolutionHandler_ to _rejectionHandler_.
+1. Let _resolveReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _resolutionHandler_).
+1. Let _rejectReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _rejectionHandler_).
+1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"pending"`,
+     1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal data property.
+     1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal data property.
+1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"has-resolution"`, queue a microtask to do the following:
+     1. Let _resolution_ be the value of _promise_'s [[Resolution]] internal data property.
+     1. Call(_resolveReaction_, _resolution_).
+1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"has-rejection"`, queue a microtask to do the following:
+     1. Let _resolution_ be the value of _promise_'s [[Rejection]] internal data property.
+     1. Call(_rejectReaction_, _reason_).
+1. Return _deferred_.[[Promise]].
 
-Note: The `then` function is not generic. If the **this** value is not an object with an [[IsPromise]] internal data property initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
+Note: The `then` function is not generic. If the **this** value is not an object with an [[PromiseStatus]] internal data property initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
 
 ## Properties of Promise Instances
 
@@ -421,38 +343,7 @@ Promise instances are ordinary objects that inherit properties from the Promise 
         </tr>
     </thead>
     <tbody>
-        <tr>
-            <td>[[IsPromise]]</td>
-            <td>A branding property given to all promises at allocation-time. Uninitialized promises have it set to <strong>undefined</strong>, whereas initialized ones have it set to <strong>true</strong>.</td>
-        </tr>
-        <tr>
-            <td>[[PromiseConstructor]]</td>
-            <td>The function object that was used to construct this promise. Checked by <code>Promise.cast</code>.</td>
-        </tr>
-        <tr>
-            <td>[[Derived]]</td>
-            <td>A List of derived promise transforms that need to be processed once the promise's [[HasValue]] or [[HasReason]] become <strong>true</strong>.</td>
-        </tr>
-        <tr>
-            <td>[[Following]]</td>
-            <td>Another promise that this one is following, or <strong>undefined</strong>.</td>
-        </tr>
-        <tr>
-            <td>[[Value]]</td>
-            <td>The promise's direct fulfillment value (from resolving it with a non-thenable). Only meaningful if [[HasValue]] is <strong>true</strong>.</td>
-        </tr>
-        <tr>
-            <td>[[HasValue]]</td>
-            <td>Whether the promise has a direct fulfillment value or not. This allows distinguishing between no direct fulfillment value, and one of <strong>undefined</strong>.</td>
-        </tr>
-        <tr>
-            <td>[[Reason]]</td>
-            <td>The promise's direct rejection reason (from rejecting it). Only meaningful if [[HasReason]] is <strong>true</strong>.</td>
-        </tr>
-        <tr>
-            <td>[[HasReason]]</td>
-            <td>Whether the promise has a direct rejection reason or not. This allows distinguishing between no direct rejection reason, and one of <strong>undefined</strong>.</td>
-        </tr>
+
     </tbody>
 </table>
 
@@ -486,12 +377,20 @@ Algorithm steps that say
 mean the same things as:
 
 1. If _argument_ is an abrupt completion,
-   1. Let _reject_ be _deferred_.[[Reject]].
-   1. If IsCallable(_reject_) is **false**, throw a **TypeError** exception.
-   1. Let _result_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and a list containing _argument_.[[value]] as _argumentsList_.
-   1. ReturnIfAbrupt(_result_).
-   1. Return _deferred_.[[Promise]].
+    1. Call(_deferred_.[[Reject]], _argument_.[[value]]).
+    1. Return _deferred_.[[Promise]].
 1. Else if _argument_ is a Completion Record, then let _argument_ be _argument_.[[value]].
+
+### Call
+
+Algorithm steps that say
+
+1. Call(_function_, _argument_).
+
+Mean the same things as:
+
+1. Let _result_ be the result of calling the [[Call]] internal method of _function_ with **undefined** as _thisArgument_ and a list containing _argument_ as _argumentsList_.
+1. ReturnIfAbrupt(_result_).
 
 ---
 

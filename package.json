@@ -4,7 +4,7 @@
   "description": "Some proto-spec work on exact promise semantics for the DOM and ES.",
   "main": "testable-implementation.js",
   "scripts": {
-    "test": "mocha --harmony run-tests.js"
+    "test": "mocha --harmony run-tests.js --bail"
   },
   "repository": {
     "type": "git",

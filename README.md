@@ -55,7 +55,7 @@ The abstract operation MakePromiseReactionFunction creates a promise reaction fu
 
 The abstract operation PromiseReject rejects a promise with a reason.
 
-1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"pending"`, return.
+1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, return.
 1. Let _reactions_ be the value of _promise_'s [[RejectReactions]] internal slot.
 1. Set the value of _promise_'s [[Result]] internal slot to _reason_.
 1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
@@ -67,7 +67,7 @@ The abstract operation PromiseReject rejects a promise with a reason.
 
 The abstract operation PromiseResolve resolves a promise with a value.
 
-1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"pending"`, return.
+1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, return.
 1. Let _reactions_ be the value of _promise_'s [[ResolveReactions]] internal slot.
 1. Set the value of _promise_'s [[Result]] internal slot to _resolution_.
 1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
@@ -214,7 +214,7 @@ The `Promise` constructor is designed to be subclassable. It may be used as the 
 1. If _promise_ does not have a [[PromiseStatus]] internal slot, then throw a **TypeError** exception.
 1. If _promise_'s [[PromiseStatus]] internal slot is not **undefined**, then throw a **TypeError** exception.
 1. If IsCallable(_resolver_) is **false**, then throw a **TypeError** exception.
-1. Set _promise_'s [[PromiseStatus]] internal slot to `"pending"`.
+1. Set _promise_'s [[PromiseStatus]] internal slot to `"unresolved"`.
 1. Set _promise_'s [[ResolveReactions]] internal slot to a new empty List.
 1. Set _promise_'s [[RejectReactions]] internal slot to a new empty List.
 1. Let _resolve_ be a new built-in function object as defined in Resolve Promise Functions.
@@ -379,7 +379,7 @@ Note: The `catch` function is intentionally generic; it does not require that it
 1. Set the [[RejectionHandler]] internal slot of _resolutionHandler_ to _rejectionHandler_.
 1. Let _resolveReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _resolutionHandler_).
 1. Let _rejectReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _rejectionHandler_).
-1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"pending"`,
+1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"unresolved"`,
      1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal slot.
      1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal slot.
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`, queue a microtask to do the following:
@@ -407,7 +407,7 @@ Promise instances are ordinary objects that inherit properties from the Promise 
     <tbody>
          <tr>
             <td>[[PromiseStatus]]</td>
-            <td>A string value that governs how a promise will react to incoming calls to its <code>then</code> method. The possible values are: <code>"pending"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
+            <td>A string value that governs how a promise will react to incoming calls to its <code>then</code> method. The possible values are: <code>"unresolved"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
          </tr>
          <tr>
             <td>[[PromiseConstructor]]</td>
@@ -415,15 +415,15 @@ Promise instances are ordinary objects that inherit properties from the Promise 
          </tr>
          <tr>
             <td>[[Result]]</td>
-            <td>The value with which the promise has been resolved or rejected, if any. Only meaningful if [[PromiseStatus]] is not <code>"pending"</code>.</td>
+            <td>The value with which the promise has been resolved or rejected, if any. Only meaningful if [[PromiseStatus]] is not <code>"unresolved"</code>.</td>
          </tr>
          <tr>
             <td>[[ResolveReactions]]</td>
-            <td>A List of functions to be processed when/if the promise transitions from being pending to having a resolution.</td>
+            <td>A List of functions to be processed when/if the promise transitions from being unresolved to having a resolution.</td>
          </tr>
          <tr>
             <td>[[RejectReactions]]</td>
-            <td>A List of functions to be processed when/if the promise transitions from being pending to having a rejection.</td>
+            <td>A List of functions to be processed when/if the promise transitions from being unresolved to having a rejection.</td>
          </tr>
     </tbody>
 </table>

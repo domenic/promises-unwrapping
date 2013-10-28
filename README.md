@@ -117,7 +117,7 @@ When a deferred construction function _F_ is called with arguments _resolve_ and
 
 A promise reaction function is an anonymous function that applies the appropriate handler to the incoming value, and uses the handler's return value to resolve or reject the derived promise associated with that handler.
 
-Each promise reaction function has [[Deferred]] and [[Handler]] slots.
+Each promise reaction function has [[Deferred]] and [[Handler]] internal slots.
 
 When a promise reaction function _F_ is called with argument _x_, the following steps are taken:
 
@@ -151,7 +151,7 @@ When a promise reaction function _F_ is called with argument _x_, the following 
 
 A promise resolution handler function is an anonymous function that has the ability to handle a promise being resolved, by "unwrapping" any incoming values until they are no longer promises or thenables and can be passed to the appropriate fulfillment handler.
 
-Each promise resolution handler function has [[PromiseConstructor]], [[FulfillmentHandler]], and [[RejectionHandler]] slots.
+Each promise resolution handler function has [[PromiseConstructor]], [[FulfillmentHandler]], and [[RejectionHandler]] internal slots.
 
 When a promise resolution handler function _F_ is called with argument _x_, the following steps are taken:
 
@@ -161,6 +161,28 @@ When a promise resolution handler function _F_ is called with argument _x_, the 
 1. Let _coerced_ be the result of calling ThenableToPromise(_C_, _x_).
 1. If IsPromise(_coerced_) is **true**, return the result of calling Invoke(_coerced_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
 1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
+
+### Reject Promise Functions
+
+A reject promise function is an anonymous function that has the ability to reject a promise with a given reason.
+
+Each reject promise function has a [[Promise]] internal slot.
+
+When a reject promise function _F_ is called with argument _reason_, the following steps are taken:
+
+1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
+1. Return the result of calling PromiseReject(_promise_, _reason_).
+
+### Resolve Promise Functions
+
+A resolve promise function is an anonymous function that has the ability to resolve a promise with a given resolution.
+
+Each resolve promise function has a [[Promise]] internal slot.
+
+When a resolve promise function _F_ is called with argument _resolution_, the following steps are taken:
+
+1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
+1. Return the result of calling PromiseResolve(_promise_, _resolution_).
 
 ## The Promise Constructor
 
@@ -178,8 +200,10 @@ The `Promise` constructor is designed to be subclassable. It may be used as the 
 1. Set _promise_'s [[PromiseStatus]] internal data property to `"pending"`.
 1. Set _promise_'s [[ResolveReactions]] internal data property to a new empty List.
 1. Set _promise_'s [[RejectReactions]] internal data property to a new empty List.
-1. Let `resolve(x)` be an ECMAScript function that calls `PromiseResolve(promise, x)`.
-1. Let `reject(r)` be an ECMAScript function that calls `PromiseReject(promise, r)`.
+1. Let _resolve_ be a new built-in function object as defined in Resolve Promise Functions.
+1. Set the [[Promise]] internal slot of _resolve_ to _promise_.
+1. Let _reject_ be a new built-in function object as defined in Reject Promise Functions.
+1. Set the [[Promise]] internal slot of _reject_ to _promise_.
 1. Let _result_ be the result of calling the [[Call]] internal method of _resolver_ with **undefined** as _thisArgument_ and a List containing _resolve_ and _reject_ as _argumentsList_.
 1. If _result_ is an abrupt completion, call PromiseReject(_promise_, _result_.[[value]]).
 1. Return _promise_.

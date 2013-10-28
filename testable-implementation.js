@@ -208,6 +208,30 @@ function make_PromiseResolutionHandlerFunction() {
     return F;
 }
 
+function make_RejectPromiseFunction() {
+    let F = function (reason) {
+        let promise = get_slot(F, "[[Promise]]");
+
+        return PromiseReject(promise, reason);
+    };
+
+    make_slots(F, ["[[Promise]]"]);
+
+    return F;
+}
+
+function make_ResolvePromiseFunction() {
+    let F = function (resolution) {
+        let promise = get_slot(F, "[[Promise]]");
+
+        return PromiseResolve(promise, resolution);
+    };
+
+    make_slots(F, ["[[Promise]]"]);
+
+    return F;
+}
+
 // ## The Promise Constructor
 
 // ### Promise
@@ -237,12 +261,11 @@ function Promise(resolver) {
     set_slot(promise, "[[ResolveReactions]]", []);
     set_slot(promise, "[[RejectReactions]]", []);
 
-    let resolve = function (x) {
-        PromiseResolve(promise, x);
-    };
-    let reject = function (r) {
-        PromiseReject(promise, r);
-    };
+    let resolve = make_ResolvePromiseFunction();
+    set_slot(resolve, "[[Promise]]", promise);
+
+    let reject = make_RejectPromiseFunction();
+    set_slot(reject, "[[Promise]]", promise);
 
     try {
         resolver.call(undefined, resolve, reject);

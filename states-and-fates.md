@@ -19,7 +19,7 @@ Promises have two possible mutually exclusive fates: resolved, and unresolved.
 - A promise is *resolved* if trying to resolve or reject it has no effect, i.e. the promise has been "locked in" to either follow another promise, or has been fulfilled or rejected.
 - A promise is *unresolved* if it is not resolved, i.e. if trying to resolve or reject it will have an impact on the promise.
 
-A promise can be "resolved to" either a promise, in which case it follows the promise, or to a thenable, in which case it "accepts" the thenable for later unwrapping, or to a non-promise value, in which case it is fulfilled with that value.
+A promise can be "resolved to" either a promise or thenable, in which case it will store the promise or thenable for later unwrapping; or it can be resolved to a non-promise value, in which case it is fulfilled with that value.
 
 ### Relating States and Fates
 
@@ -35,11 +35,12 @@ Note that these relations are recursive, e.g. a promise that has been resolved t
 
 ## Relation to the Spec
 
-### Undeterminability of State
-
-You cannot derive a promise's state directly from the [spec primitives](README.md) `[[Following]]`, `[[Value]]`, and `[[Reason]]`. For example, a promise may be fulfilled even if `p.[[Value]]` is unset, as long as `p.[[Following]].[[Value]]` is set. Or a promise may be rejected if `p.[[Value]]` is set to a thenable that will call any passed rejection handler. In fact, due to the impact of thenables, a promise's state cannot be determined until it has been measured at least once, by calling `promise.then(...)`, since it is only when the promise's `then` method is called that any unwrapping of "accepted" thenables takes place.
-
 ## Fates
 
-- A promise `p` is resolved if `p.[[Value]]`, `p.[[Reason]]`, or `p.[[Following]]` are set.
-- A promise `p` is unresolved if none of `p.[[Value]]`, `p.[[Reason]]`, or `p.[[Following]]` are set.
+- A promise _p_ is resolved if the value of _p_'s [[PromiseStatus]] internal slot is `"has-resolution"` or `"has-rejection"`.
+- A promise _p_ is unresolved if the value of _p_'s [[PromiseStatus]] internal slot is `"unresolved"`.
+
+### Undeterminability of State
+
+You cannot derive a promise's state directly from its internal slots. For example, a promise may be pending even if its [[PromiseStatus]] is `"has-resolution"`, if its [[Result]] is another pending promise. Or, a promise may be rejected if its [[Result]] is set to a thenable that will call any passed rejection handler. In fact, due to the impact of thenables, a promise's state cannot be determined until it has been measured at least once, by calling `promise.then(...)`, since it is only when the promise's `then` method is called that any unwrapping of its resolution takes place.
+

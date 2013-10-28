@@ -141,6 +141,36 @@ function make_DeferredConstructionFunction() {
     return F;
 }
 
+function make_PromiseDotAllCountdownFunction() {
+    let F = function (x) {
+        let index = get_slot(F, "[[Index]]");
+        let values = get_slot(F, "[[Values]]");
+        let deferred = get_slot(F, "[[Deferred]]");
+        let countdownHolder = get_slot(F, "[[CountdownHolder]]");
+
+        try {
+            Object.defineProperty(values, index, {
+                value: x,
+                writable: true,
+                enumerable: true,
+                configurable: true
+            });
+        } catch (resultE) {
+            return RejectIfAbrupt(resultE, deferred);
+        }
+
+        countdownHolder["[[Countdown]]"] = countdownHolder["[[Countdown]]"] - 1;
+
+        if (countdownHolder["[[Countdown]]"] === 0) {
+            Call(deferred["[[Resolve]]"], values);
+        }
+    };
+
+    make_slots(F, ["[[Index]]", "[[Values]]", "[[Deferred]]", "[[CountdownHolder]]"]);
+
+    return F;
+}
+
 function make_PromiseReactionFunction() {
     let F = function (x) {
         let deferred = get_slot(F, "[[Deferred]]");
@@ -302,30 +332,22 @@ define_method(Promise, "all", function (iterable) {
     let deferred = GetDeferred(C);
 
     let values = ArrayCreate(0);
-    let countdown = 0;
+    let countdownHolder = { "[[Countdown]]": 0 };
     let index = 0;
 
     for (let nextValue of iterable) {
         let nextPromise = C.cast(nextValue);
-        let currentIndex = index;
 
-        let onFulfilled = function (v) {
-            Object.defineProperty(values, currentIndex, {
-                value: v,
-                writable: true,
-                enumerable: true,
-                configurable: true
-            });
-            countdown = countdown - 1;
-            if (countdown === 0) {
-                Call(deferred["[[Resolve]]"], values);
-            }
-        };
+        let countdownFunction = make_PromiseDotAllCountdownFunction();
+        set_slot(countdownFunction, "[[Index]]", index);
+        set_slot(countdownFunction, "[[Values]]", values);
+        set_slot(countdownFunction, "[[Deferred]]", deferred);
+        set_slot(countdownFunction, "[[CountdownHolder]]", countdownHolder);
 
-        nextPromise.then(onFulfilled, deferred["[[Reject]]"]);
+        nextPromise.then(countdownFunction, deferred["[[Reject]]"]);
 
         index = index + 1;
-        countdown = countdown + 1;
+        countdownHolder["[[Countdown]]"] = countdownHolder["[[Countdown]]"] + 1;
     }
 
     if (index === 0) {

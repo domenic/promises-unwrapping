@@ -113,6 +113,24 @@ When a deferred construction function _F_ is called with arguments _resolve_ and
 1. Set _deferred_.[[Resolve]] to _resolve_.
 1. Set _deferred_.[[Reject]] to _reject_.
 
+### Promise.all Countdown Functions
+
+A Promise.all countdown function is an anonymous function that handles fulfillment of any promises passed to the `all` method of the Promise constructor.
+
+Each Promise.all countdown function has [[Index]], [[Values]], [[Deferred]], and [[CountdownHolder]] internal slots.
+
+When a Promise.all countdown function _F_ is called with argument _x_, the following steps are taken:
+
+1. Let _index_ be the value of _F_'s [[Index]] internal slot.
+1. Let _values_ be the value of _F_'s [[Values]] internal slot.
+1. Let _deferred_ be the value of _F_'s [[Deferred]] internal slot.
+1. Let _countdownHolder_ be the value of _F_'s [[CountdownHolder]] internal slot.
+1. Let _result_ be the result of calling the [[DefineOwnProperty]] internal method of _values_ with arguments _index_ and Property Descriptor { [[Value]]: _x_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
+1. RejectIfAbrupt(_result_, _deferred_).
+1. Set _countdownHolder_.[[Countdown]] to _countdownHolder_.[[Countdown]] - 1.
+1. If _countdownHolder_.[[Countdown]] is 0,
+    1. Call(_deferred_.[[Resolve]], _values_).
+
 ### Promise Reaction Functions
 
 A promise reaction function is an anonymous function that applies the appropriate handler to the incoming value, and uses the handler's return value to resolve or reject the derived promise associated with that handler.
@@ -241,7 +259,7 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
 1. Let _iterator_ be the result of calling GetIterator(_iterable_).
 1. RejectIfAbrupt(_iterator_, _deferred_).
 1. Let _values_ be the result of calling ArrayCreate(0).
-1. Let _countdown_ be 0.
+1. Let _countdownHolder_ be Record { [[Countdown]]: 0 }.
 1. Let _index_ be 0.
 1. Repeat
     1. Let _next_ be the result of calling IteratorStep(_iterator_).
@@ -254,15 +272,15 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
     1. RejectIfAbrupt(_nextValue_, _deferred_).
     1. Let _nextPromise_ be the result of calling Invoke(_C_, `"cast"`, (_nextValue_)).
     1. RejectIfAbrupt(_nextPromise_, _deferred_).
-    1. Let _currentIndex_ be the current value of _index_.
-    1. Let `onFulfilled(v)` be an ECMAScript function that:
-        1. Calls the [[DefineOwnProperty]] internal method of _values_ with arguments _currentIndex_ and Property Descriptor { [[Value]]: _v_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
-        1. Sets _countdown_ to _countdown_ - 1.
-        1. If _countdown_ is 0, calls `Call(deferred.[[Resolve]], values)`.
-    1. Let _result_ be the result of calling Invoke(_nextPromise_, `"then"`, (_onFulfilled_, _deferred_.[[Reject]])).
+    1. Let _countdownFunction_ be a new built-in function object as defined in Promise.all Countdown Functions.
+    1. Set the [[Index]] internal slot of _countdownFunction_ to _index_.
+    1. Set the [[Values]] internal slot of _countdownFunction_ to _values_.
+    1. Set the [[Deferred]] internal slot of _countdownFunction_ to _deferred_.
+    1. Set the [[CountdownHolder]] internal slot of _countdownFunction_ to _countdownHolder_.
+    1. Let _result_ be the result of calling Invoke(_nextPromise_, `"then"`, (_countdownFunction_, _deferred_.[[Reject]])).
     1. RejectIfAbrupt(_result_, _deferred_).
     1. Set _index_ to _index_ + 1.
-    1. Set _countdown_ to _countdown_ + 1.
+    1. Set _countdownHolder_.[[Countdown]] to _countdownHolder_.[[Countdown]] + 1.
 
 Note: The `all` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 

@@ -58,7 +58,7 @@ The abstract operation PromiseReject rejects a promise with a reason.
 
 1. If the value of _promise_'s internal data property [[PromiseStatus]] is not `"pending"`, return.
 1. Let _reactions_ be the value of _promise_'s [[RejectReactions]] internal data property.
-1. Set the value of _promise_'s [[Reason]] internal data property to _reason_.
+1. Set the value of _promise_'s [[Result]] internal data property to _reason_.
 1. Set the value of _promise_'s [[ResolveReactions]] internal data property to **undefined**.
 1. Set the value of _promise_'s [[RejectReactions]] internal data property to **undefined**.
 1. Set the value of _promise_'s [[PromiseStatus]] internal data property to `"has-rejection"`.
@@ -70,7 +70,7 @@ The abstract operation PromiseResolve resolves a promise with a value.
 
 1. If the value of _promise_'s internal data property [[PromiseStatus]] is not `"pending"`, return.
 1. Let _reactions_ be the value of _promise_'s [[ResolveReactions]] internal data property.
-1. Set the value of _promise_'s [[Resolution]] internal data property to _resolution_.
+1. Set the value of _promise_'s [[Result]] internal data property to _resolution_.
 1. Set the value of _promise_'s [[ResolveReactions]] internal data property to **undefined**.
 1. Set the value of _promise_'s [[RejectReactions]] internal data property to **undefined**.
 1. Set the value of _promise_'s [[PromiseStatus]] internal data property to `"has-resolution"`.
@@ -225,7 +225,7 @@ If Promise is implemented as an ordinary function object, its [[Construct]] inte
 ### Promise \[ @@create \] ( )
 
 1. Let _F_ be the **this** value.
-1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_constructor_, "%PromisePrototype%", ([[PromiseStatus]], [[PromiseConstructor]], [[Resolution]], [[Reason]], [[ResolveReactions]], [[RejectReactions]])).
+1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_constructor_, "%PromisePrototype%", ([[PromiseStatus]], [[PromiseConstructor]], [[Result]], [[ResolveReactions]], [[RejectReactions]])).
 1. Set _obj_'s [[PromiseConstructor]] internal data property to _F_.
 1. Return _obj_.
 
@@ -360,7 +360,7 @@ Note: The `catch` function is intentionally generic; it does not require that it
      1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal data property.
      1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal data property.
 1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"has-resolution"`, queue a microtask to do the following:
-     1. Let _resolution_ be the value of _promise_'s [[Resolution]] internal data property.
+     1. Let _resolution_ be the value of _promise_'s [[Result]] internal data property.
      1. Call(_resolveReaction_, _resolution_).
 1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"has-rejection"`, queue a microtask to do the following:
      1. Let _resolution_ be the value of _promise_'s [[Rejection]] internal data property.
@@ -382,7 +382,26 @@ Promise instances are ordinary objects that inherit properties from the Promise 
         </tr>
     </thead>
     <tbody>
-
+         <tr>
+            <td>[[PromiseStatus]]</td>
+            <td>A string value that identifies which internal property a promise will use to react to incoming calls to its <code>then</code> method. The possible values are: <code>"pending"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
+         </tr>
+         <tr>
+            <td>[[PromiseConstructor]]</td>
+            <td>The function object that was used to construct this promise. Checked by the <code>cast</code> method of the <code>Promise</code> constructor.</td>
+         </tr>
+         <tr>
+            <td>[[Result]]</td>
+            <td>The value with which the promise has been resolved or rejected, if any. Only meaningful if [[PromiseStatus]] is not <code>"pending"</code>.</td>
+         </tr>
+         <tr>
+            <td>[[ResolveReactions]]</td>
+            <td>A List of functions to be processed when/if the promise transitions from being pending to having a resolution.</td>
+         </tr>
+         <tr>
+            <td>[[RejectReactions]]</td>
+            <td>A List of functions to be processed when/if the promise transitions from being pending to having a rejection.</td>
+         </tr>
     </tbody>
 </table>
 

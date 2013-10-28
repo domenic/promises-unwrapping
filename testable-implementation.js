@@ -68,7 +68,7 @@ function PromiseReject(promise, reason) {
     }
 
     let reactions = get_slot(promise, "[[RejectReactions]]");
-    set_slot(promise, "[[Reason]]", reason);
+    set_slot(promise, "[[Result]]", reason);
     set_slot(promise, "[[ResolveReactions]]", undefined);
     set_slot(promise, "[[RejectReactions]]", undefined);
     set_slot(promise, "[[PromiseStatus]]", "has-rejection");
@@ -81,7 +81,7 @@ function PromiseResolve(promise, resolution) {
     }
 
     let reactions = get_slot(promise, "[[ResolveReactions]]");
-    set_slot(promise, "[[Resolution]]", resolution);
+    set_slot(promise, "[[Result]]", resolution);
     set_slot(promise, "[[ResolveReactions]]", undefined);
     set_slot(promise, "[[RejectReactions]]", undefined);
     set_slot(promise, "[[PromiseStatus]]", "has-resolution");
@@ -285,8 +285,8 @@ Object.defineProperty(Promise, "@@create", {
         // This is basically OrdinaryCreateFromConstructor(...).
         let obj = Object.create(Promise.prototype);
 
-        make_slots(obj, ["[[PromiseStatus]]", "[[PromiseConstructor]]", "[[Resolution]]", "[[Reason]]",
-                         "[[ResolveReactions]]", "[[RejectReactions]]"]);
+        make_slots(obj, ["[[PromiseStatus]]", "[[PromiseConstructor]]", "[[Result]]",  "[[ResolveReactions]]",
+                         "[[RejectReactions]]"]);
 
         set_slot(obj, "[[PromiseConstructor]]", F);
 
@@ -397,14 +397,14 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
 
     if (get_slot(promise, "[[PromiseStatus]]") === "has-resolution") {
         QueueAMicrotask(function () {
-            let resolution = get_slot(promise, "[[Resolution]]");
+            let resolution = get_slot(promise, "[[Result]]");
             Call(resolutionReaction, resolution);
         });
     }
 
     if (get_slot(promise, "[[PromiseStatus]]") === "has-rejection") {
         QueueAMicrotask(function () {
-            let reason = get_slot(promise, "[[Reason]]");
+            let reason = get_slot(promise, "[[Result]]");
             Call(rejectionReaction, reason);
         });
     }

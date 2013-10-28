@@ -20,10 +20,6 @@ function GetDeferred(C) {
 
     let promise = ES6New(C, resolver);
 
-    if (IsPromise(promise) === false) {
-        throw new TypeError("Tried to construct a promise but the constructor returned a non-promise.");
-    }
-
     if (IsCallable(deferred["[[Resolve]]"]) === false) {
         throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable resolve " +
                             "argument.");

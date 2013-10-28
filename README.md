@@ -28,7 +28,6 @@ The abstract operation GetDeferred takes a potential constructor function, and a
 1. Set the value of _resolver_'s [[Deferred]] internal slot to _deferred_.
 1. Let _promise_ be the result of calling the [[Construct]] internal method of _C_ with an argument list containing the single item _resolver_.
 1. ReturnIfAbrupt(_promise_).
-1. If IsPromise(_promise_) is **false**, throw a **TypeError**.
 1. If IsCallable(_deferred_.[[Resolve]]) is **false**, throw a **TypeError**.
 1. If IsCallable(_deferred_.[[Reject]]) is **false**, throw a **TypeError**.
 1. Set _deferred_.[[Promise]] to _promise_.

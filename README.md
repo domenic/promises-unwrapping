@@ -252,14 +252,14 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
         1. Return _deferred_.[[Promise]].
     1. Let _nextValue_ be the result of calling IteratorValue(_next_).
     1. RejectIfAbrupt(_nextValue_, _deferred_).
-    1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
+    1. Let _nextPromise_ be the result of calling Invoke(_C_, `"cast"`, (_nextValue_)).
     1. RejectIfAbrupt(_nextPromise_, _deferred_).
     1. Let _currentIndex_ be the current value of _index_.
     1. Let `onFulfilled(v)` be an ECMAScript function that:
         1. Calls the [[DefineOwnProperty]] internal method of _values_ with arguments _currentIndex_ and Property Descriptor { [[Value]]: _v_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
         1. Sets _countdown_ to _countdown_ - 1.
-        1. If _countdown_ is 0, calls `resolve.[[Call]](undefined, (values))`.
-    1. Let _result_ be the result of calling Then(_nextPromise_, _onFulfilled_, _deferred_.[[Reject]]).
+        1. If _countdown_ is 0, calls `Call(deferred.[[Resolve]], values)`.
+    1. Let _result_ be the result of calling Invoke(_nextPromise_, `"then"`, (_onFulfilled_, _deferred_.[[Reject]])).
     1. RejectIfAbrupt(_result_, _deferred_).
     1. Set _index_ to _index_ + 1.
     1. Set _countdown_ to _countdown_ + 1.
@@ -271,7 +271,13 @@ Note: The `all` function is an intentionally generic utility method; it does not
 `cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
 1. Let _C_ be the **this** value.
-1. Return the result of calling ToPromise(_C_, _x_).
+1. If IsPromise(_x_) is **true**,
+    1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
+    1. If SameValue(_constructor_, _C_) is **true**, return _x_.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Call(_deferred_.[[Resolve]], _x_).
+1. Return _deferred_.[[Promise]].
 
 Note: The `cast` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 
@@ -290,9 +296,9 @@ Note: The `cast` function is an intentionally generic utility method; it does no
     1. If _next_ is **false**, return _deferred_.[[Promise]].
     1. Let _nextValue_ be the result of calling IteratorValue(_next_).
     1. RejectIfAbrupt(_nextValue_, _deferred_).
-    1. Let _nextPromise_ be the result of calling ToPromise(_C_, _nextValue_).
+    1. Let _nextPromise_ be the result of calling Invoke(_C_, `"cast"`, (_nextValue_)).
     1. RejectIfAbrupt(_nextPromise_, _deferred_).
-    1. Let _result_ be the result of calling Then(_nextPromise_, _deferred_.[[Resolve]], _deferred_.[[Reject]]).
+    1. Let _result_ be the result of calling Invoke(_nextPromise_, `"then"`, (_deferred_.[[Resolve]], _deferred_.[[Reject]])).
     1. RejectIfAbrupt(_result_, _deferred_).
 
 Note: The `race` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.

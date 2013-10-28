@@ -297,6 +297,44 @@ Object.defineProperty(Promise, "@@create", {
     configurable: true
 });
 
+define_method(Promise, "all", function (iterable) {
+    let C = this;
+    let deferred = GetDeferred(C);
+
+    let values = ArrayCreate(0);
+    let countdown = 0;
+    let index = 0;
+
+    for (let nextValue of iterable) {
+        let nextPromise = C.cast(nextValue);
+        let currentIndex = index;
+
+        let onFulfilled = function (v) {
+            Object.defineProperty(values, currentIndex, {
+                value: v,
+                writable: true,
+                enumerable: true,
+                configurable: true
+            });
+            countdown = countdown - 1;
+            if (countdown === 0) {
+                Call(deferred["[[Resolve]]"], values);
+            }
+        };
+
+        nextPromise.then(onFulfilled, deferred["[[Reject]]"]);
+
+        index = index + 1;
+        countdown = countdown + 1;
+    }
+
+    if (index === 0) {
+        Call(deferred["[[Resolve]]"], values);
+    }
+
+    return deferred["[[Promise]]"];
+});
+
 define_method(Promise, "resolve", function (x) {
     let C = this;
     let deferred = GetDeferred(C);
@@ -313,7 +351,15 @@ define_method(Promise, "reject", function (r) {
 
 define_method(Promise, "cast", function (x) {
     let C = this;
-    return ToPromise(C, x);
+    if (IsPromise(x) === true) {
+        let constructor = get_slot(x, "[[PromiseConstructor]]");
+        if (SameValue(constructor, C) === true) {
+            return x;
+        }
+    }
+    let deferred = GetDeferred(C);
+    Call(deferred["[[Resolve]]"], x);
+    return deferred["[[Promise]]"];
 });
 
 define_method(Promise, "race", function (iterable) {
@@ -321,48 +367,8 @@ define_method(Promise, "race", function (iterable) {
     let deferred = GetDeferred(C);
 
     for (let nextValue of iterable) {
-        let nextPromise = ToPromise(C, nextValue);
-        Then(nextPromise, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
-    }
-
-    return deferred["[[Promise]]"];
-});
-
-define_method(Promise, "all", function (iterable) {
-    let C = this;
-    let deferred = GetDeferred(C);
-
-    let values = ArrayCreate(0);
-    let countdown = 0;
-    let index = 0;
-
-    let resolve = deferred["[[Resolve]]"];
-
-    for (let nextValue of iterable) {
-        let nextPromise = ToPromise(C, nextValue);
-        let currentIndex = index;
-
-        let onFulfilled = function (v) {
-            Object.defineProperty(values, currentIndex, {
-                value: v,
-                writable: true,
-                enumerable: true,
-                configurable: true
-            });
-            countdown = countdown - 1;
-            if (countdown === 0) {
-                resolve.call(undefined, values);
-            }
-        };
-
-        Then(nextPromise, onFulfilled, deferred["[[Reject]]"]);
-
-        index = index + 1;
-        countdown = countdown + 1;
-    }
-
-    if (index === 0) {
-        resolve.call(undefined, values);
+        let nextPromise = C.cast(nextValue);
+        nextPromise.then(deferred["[[Resolve]]"], deferred["[[Reject]]"]);
     }
 
     return deferred["[[Promise]]"];

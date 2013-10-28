@@ -132,7 +132,7 @@ describe.skip("Memoization of thenables", function () {
 
 // In Node v0.11.7 --harmony, arrays are not iterable, but they have `.values()` methods that return iterables.
 // In real life we should just use arrays and not need to do the silly `.values()` thing.
-describe.skip("Promise.all", function () {
+describe("Promise.all", function () {
     it("fulfills if passed an empty array", function (done) {
         adapter.done(Promise.all([].values()), function (value) {
             assert(Array.isArray(value));

@@ -23,13 +23,16 @@ Deferreds are Records composed of three named fields:
 The abstract operation GetDeferred takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
 
 1. If IsConstructor(_C_) is **false**, throw a **TypeError**.
-1. Let `resolver(passedResolve, passedReject)` be an ECMAScript function that lets _resolve_ be `passedResolve` and _reject_ be `passedReject`.
+1. Let _deferred_ be the Deferred { [[Promise]]: **undefined**, [[Resolve]]: **undefined**, [[Reject]]: **undefined** }.
+1. Let _resolver_ be a new built-in function object as defined in Deferred Construction Functions.
+1. Set the value of _resolver_'s [[Deferred]] internal slot to _deferred_.
 1. Let _promise_ be the result of calling the [[Construct]] internal method of _C_ with an argument list containing the single item _resolver_.
 1. ReturnIfAbrupt(_promise_).
 1. If IsPromise(_promise_) is **false**, throw a **TypeError**.
-1. If IsCallable(_resolve_) is **false**, throw a **TypeError**.
-1. If IsCallable(_reject_) is **false**, throw a **TypeError**.
-1. Return the Deferred { [[Promise]]: _promise_, [[Resolve]]: _resolve_, [[Reject]]: _reject_ }.
+1. If IsCallable(_deferred_.[[Resolve]]) is **false**, throw a **TypeError**.
+1. If IsCallable(_deferred_.[[Reject]]) is **false**, throw a **TypeError**.
+1. Set _deferred_.[[Promise]] to _promise_.
+1. Return _deferred_.
 
 ### IsPromise ( x )
 
@@ -97,6 +100,18 @@ The abstract operation TriggerPromiseReactions takes a collection of functions t
         1. Call(_reaction_, _argument_).
 
 ## Built-in Functions for Promise Objects
+
+### Deferred Construction Functions
+
+A deferred construction function is an anonymous function that stores its arguments on a supplied Deferred record instance.
+
+Each deferred construction function has a [[Deferred]] internal slot.
+
+When a deferred construction function _F_ is called with arguments _resolve_ and _reject_, the following steps are taken:
+
+1. Let _deferred_ be the value of _F_'s [[Deferred]] internal slot.
+1. Set _deferred_.[[Resolve]] to _resolve_.
+1. Set _deferred_.[[Reject]] to _reject_.
 
 ### Promise Reaction Functions
 

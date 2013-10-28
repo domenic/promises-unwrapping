@@ -12,11 +12,11 @@ function GetDeferred(C) {
         throw new TypeError("Tried to construct a promise from a non-constructor.");
     }
 
-    let resolve, reject;
-    let resolver = function (passedResolve, passedReject) {
-        resolve = passedResolve;
-        reject = passedReject;
-    };
+    let deferred = { "[[Promise]]": undefined, "[[Resolve]]": undefined, "[[Reject]]": undefined };
+
+    let resolver = make_DeferredConstructionFunction();
+
+    set_slot(resolver, "[[Deferred]]", deferred);
 
     let promise = ES6New(C, resolver);
 
@@ -24,17 +24,19 @@ function GetDeferred(C) {
         throw new TypeError("Tried to construct a promise but the constructor returned a non-promise.");
     }
 
-    if (IsCallable(resolve) === false) {
+    if (IsCallable(deferred["[[Resolve]]"]) === false) {
         throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable resolve " +
                             "argument.");
     }
 
-    if (IsCallable(reject) === false) {
+    if (IsCallable(deferred["[[Reject]]"]) === false) {
         throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable reject " +
                             "argument.");
     }
 
-    return { "[[Promise]]": promise, "[[Resolve]]": resolve, "[[Reject]]": reject };
+    deferred["[[Promise]]"] = promise;
+
+    return deferred;
 }
 
 function IsPromise(x) {
@@ -125,6 +127,19 @@ function TriggerPromiseReactions(reactions, argument) {
 }
 
 // ## Built-in Functions for Promise Objects
+
+function make_DeferredConstructionFunction() {
+    let F = function (resolve, reject) {
+        let deferred = get_slot(F, "[[Deferred]]");
+
+        deferred["[[Resolve]]"] = resolve;
+        deferred["[[Reject]]"] = reject;
+    };
+
+    make_slots(F, ["[[Deferred]]"]);
+
+    return F;
+}
 
 function make_PromiseReactionFunction() {
     let F = function (x) {

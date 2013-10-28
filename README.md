@@ -39,8 +39,8 @@ The abstract operation GetDeferred takes a potential constructor function, and a
 The abstract operation IsPromise checks for the promise brand on an object.
 
 1. If Type(_x_) is not Object, return **false**.
-1. If _x_ does not have a [[PromiseStatus]] internal data property, return **false**.
-1. If the value of _x_'s [[PromiseStatus]] internal data property is **undefined**, return **false**.
+1. If _x_ does not have a [[PromiseStatus]] internal slot, return **false**.
+1. If the value of _x_'s [[PromiseStatus]] internal slot is **undefined**, return **false**.
 1. Return **true**.
 
 ### MakePromiseReactionFunction ( deferred, handler )
@@ -48,32 +48,32 @@ The abstract operation IsPromise checks for the promise brand on an object.
 The abstract operation MakePromiseReactionFunction creates a promise reaction function with internal slots initialized to the passed arguments.
 
 1. Let _F_ be a new built-in function object as defined in Promise Reaction Functions.
-1. Set the [[Deferred]] internal data property of _F_ to _deferred_.
-1. Set the [[Handler]] internal data property of _F_ to _handler_.
+1. Set the [[Deferred]] internal slot of _F_ to _deferred_.
+1. Set the [[Handler]] internal slot of _F_ to _handler_.
 1. Return _F_.
 
 ### PromiseReject ( promise, reason )
 
 The abstract operation PromiseReject rejects a promise with a reason.
 
-1. If the value of _promise_'s internal data property [[PromiseStatus]] is not `"pending"`, return.
-1. Let _reactions_ be the value of _promise_'s [[RejectReactions]] internal data property.
-1. Set the value of _promise_'s [[Result]] internal data property to _reason_.
-1. Set the value of _promise_'s [[ResolveReactions]] internal data property to **undefined**.
-1. Set the value of _promise_'s [[RejectReactions]] internal data property to **undefined**.
-1. Set the value of _promise_'s [[PromiseStatus]] internal data property to `"has-rejection"`.
+1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"pending"`, return.
+1. Let _reactions_ be the value of _promise_'s [[RejectReactions]] internal slot.
+1. Set the value of _promise_'s [[Result]] internal slot to _reason_.
+1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[RejectReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-rejection"`.
 1. Call TriggerPromiseReactions(_reactions_, _reason_).
 
 ### PromiseResolve ( promise, resolution )
 
 The abstract operation PromiseResolve resolves a promise with a value.
 
-1. If the value of _promise_'s internal data property [[PromiseStatus]] is not `"pending"`, return.
-1. Let _reactions_ be the value of _promise_'s [[ResolveReactions]] internal data property.
-1. Set the value of _promise_'s [[Result]] internal data property to _resolution_.
-1. Set the value of _promise_'s [[ResolveReactions]] internal data property to **undefined**.
-1. Set the value of _promise_'s [[RejectReactions]] internal data property to **undefined**.
-1. Set the value of _promise_'s [[PromiseStatus]] internal data property to `"has-resolution"`.
+1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"pending"`, return.
+1. Let _reactions_ be the value of _promise_'s [[ResolveReactions]] internal slot.
+1. Set the value of _promise_'s [[Result]] internal slot to _resolution_.
+1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[RejectReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-resolution"`.
 1. Call TriggerPromiseReactions(_reactions_, _resolution_).
 
 ### ThenableToPromise ( C, x )
@@ -194,12 +194,12 @@ The `Promise` constructor is designed to be subclassable. It may be used as the 
 
 1. Let _promise_ be the **this** value.
 1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
-1. If _promise_ does not have a [[PromiseStatus]] internal data property, then throw a **TypeError** exception.
-1. If _promise_'s [[PromiseStatus]] internal data property is not **undefined**, then throw a **TypeError** exception.
+1. If _promise_ does not have a [[PromiseStatus]] internal slot, then throw a **TypeError** exception.
+1. If _promise_'s [[PromiseStatus]] internal slot is not **undefined**, then throw a **TypeError** exception.
 1. If IsCallable(_resolver_) is **false**, then throw a **TypeError** exception.
-1. Set _promise_'s [[PromiseStatus]] internal data property to `"pending"`.
-1. Set _promise_'s [[ResolveReactions]] internal data property to a new empty List.
-1. Set _promise_'s [[RejectReactions]] internal data property to a new empty List.
+1. Set _promise_'s [[PromiseStatus]] internal slot to `"pending"`.
+1. Set _promise_'s [[ResolveReactions]] internal slot to a new empty List.
+1. Set _promise_'s [[RejectReactions]] internal slot to a new empty List.
 1. Let _resolve_ be a new built-in function object as defined in Resolve Promise Functions.
 1. Set the [[Promise]] internal slot of _resolve_ to _promise_.
 1. Let _reject_ be a new built-in function object as defined in Reject Promise Functions.
@@ -226,7 +226,7 @@ If Promise is implemented as an ordinary function object, its [[Construct]] inte
 
 1. Let _F_ be the **this** value.
 1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_constructor_, "%PromisePrototype%", ([[PromiseStatus]], [[PromiseConstructor]], [[Result]], [[ResolveReactions]], [[RejectReactions]])).
-1. Set _obj_'s [[PromiseConstructor]] internal data property to _F_.
+1. Set _obj_'s [[PromiseConstructor]] internal slot to _F_.
 1. Return _obj_.
 
 This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **true** }.
@@ -323,9 +323,9 @@ Note: The `resolve` function is an intentionally generic factory method; it does
 
 ## Properties of the Promise Prototype Object
 
-The Promise prototype object is itself an ordinary object. It is not a Promise instance and does not have any of the promise instances' internal data properties, such as [[PromiseStatus]].
+The Promise prototype object is itself an ordinary object. It is not a Promise instance and does not have any of the promise instances' internal slots, such as [[PromiseStatus]].
 
-The value of the [[Prototype]] internal data property of the Promise prototype object is the standard built-in Object prototype object.
+The value of the [[Prototype]] internal slot of the Promise prototype object is the standard built-in Object prototype object.
 
 ### Promise.prototype.constructor
 
@@ -351,40 +351,40 @@ Note: The `catch` function is intentionally generic; it does not require that it
 1. Let _fulfillmentHandler_ be _deferred_.[[Resolve]].
 1. If IsCallable(_onFulfilled_), set _fulfillmentHandler_ to _onFulfilled_.
 1. Let _resolutionHandler_ be a new built-in function object as defined in Promise Resolution Handler Functions.
-1. Set the [[PromiseConstructor]] internal data property of _resolutionHandler_ to _C_.
-1. Set the [[FulfillmentHandler]] internal data property of _resolutionHandler_ to _fulfillmentHandler_.
-1. Set the [[RejectionHandler]] internal data property of _resolutionHandler_ to _rejectionHandler_.
+1. Set the [[PromiseConstructor]] internal slot of _resolutionHandler_ to _C_.
+1. Set the [[FulfillmentHandler]] internal slot of _resolutionHandler_ to _fulfillmentHandler_.
+1. Set the [[RejectionHandler]] internal slot of _resolutionHandler_ to _rejectionHandler_.
 1. Let _resolveReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _resolutionHandler_).
 1. Let _rejectReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _rejectionHandler_).
-1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"pending"`,
-     1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal data property.
-     1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal data property.
-1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"has-resolution"`, queue a microtask to do the following:
-     1. Let _resolution_ be the value of _promise_'s [[Result]] internal data property.
+1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"pending"`,
+     1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal slot.
+     1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal slot.
+1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`, queue a microtask to do the following:
+     1. Let _resolution_ be the value of _promise_'s [[Result]] internal slot.
      1. Call(_resolveReaction_, _resolution_).
-1. If the value of _promise_'s [[PromiseStatus]] internal data property is `"has-rejection"`, queue a microtask to do the following:
-     1. Let _resolution_ be the value of _promise_'s [[Rejection]] internal data property.
+1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`, queue a microtask to do the following:
+     1. Let _resolution_ be the value of _promise_'s [[Rejection]] internal slot.
      1. Call(_rejectReaction_, _reason_).
 1. Return _deferred_.[[Promise]].
 
-Note: The `then` function is not generic. If the **this** value is not an object with an [[PromiseStatus]] internal data property initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
+Note: The `then` function is not generic. If the **this** value is not an object with an [[PromiseStatus]] internal slot initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
 
 ## Properties of Promise Instances
 
-Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, %PromisePrototype%). Promise instances are initially created with the internal properties described in this table.
+Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, %PromisePrototype%). Promise instances are initially created with the internal slots described in this table.
 
 <table>
-    <caption>Internal Data Properties of Promise Instances</caption>
+    <caption>Internal Slots of Promise Instances</caption>
     <thead>
         <tr>
-            <th>Internal Data Property Name</th>
+            <th>Internal Slot Name</th>
             <th>Description</th>
         </tr>
     </thead>
     <tbody>
          <tr>
             <td>[[PromiseStatus]]</td>
-            <td>A string value that identifies which internal property a promise will use to react to incoming calls to its <code>then</code> method. The possible values are: <code>"pending"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
+            <td>A string value that governs how a promise will react to incoming calls to its <code>then</code> method. The possible values are: <code>"pending"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
          </tr>
          <tr>
             <td>[[PromiseConstructor]]</td>

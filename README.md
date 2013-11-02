@@ -18,6 +18,16 @@ Deferreds are Records composed of three named fields:
 
 ## Abstract Operations for Promise Objects
 
+### CastToPromise ( C, x )
+
+1. If IsPromise(_x_) is **true**,
+    1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
+    1. If SameValue(_constructor_, _C_) is **true**, return _x_.
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Call(_deferred_.[[Resolve]], _x_).
+1. Return _deferred_.[[Promise]].
+
 ### GetDeferred ( C )
 
 The abstract operation GetDeferred takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
@@ -288,13 +298,7 @@ Note: The `all` function is an intentionally generic utility method; it does not
 `cast` coerces its argument to a promise, or returns the argument if it is already a promise.
 
 1. Let _C_ be the **this** value.
-1. If IsPromise(_x_) is **true**,
-    1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
-    1. If SameValue(_constructor_, _C_) is **true**, return _x_.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Call(_deferred_.[[Resolve]], _x_).
-1. Return _deferred_.[[Promise]].
+1. Return the result of calling CastToPromise(_C_, _x_).
 
 Note: The `cast` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
 

@@ -146,6 +146,14 @@ When a deferred construction function _F_ is called with arguments _resolve_ and
 1. Set _deferred_.[[Resolve]] to _resolve_.
 1. Set _deferred_.[[Reject]] to _reject_.
 
+### Identity Functions
+
+An identity function simply returns its input.
+
+When an identity function is called with argument _x_, the following steps are taken:
+
+1. Return _x_.
+
 ### Promise.all Countdown Functions
 
 A Promise.all countdown function is an anonymous function that handles fulfillment of any promises passed to the `all` method of the Promise constructor.
@@ -236,6 +244,14 @@ When a resolve promise function _F_ is called with argument _resolution_, the fo
 
 1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
 1. Return the result of calling PromiseResolve(_promise_, _resolution_).
+
+### Thrower Functions
+
+A thrower function simply throws its input.
+
+When a thrower function is called with argument _e_, the following steps are taken:
+
+1. Return Completion{[[type]]: throw, [[value]]: e, [[target]]:empty}.
 
 ## Microtasks for Promise Objects
 
@@ -408,9 +424,9 @@ Note: The `catch` function is intentionally generic; it does not require that it
 1. ReturnIfAbrupt(_C_).
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Let _rejectionHandler_ be _deferred_.[[Reject]].
+1. Let _rejectionHandler_ be a new built-in function object as defined in Thrower Functions.
 1. If IsCallable(_onRejected_), set _rejectionHandler_ to _onRejected_.
-1. Let _fulfillmentHandler_ be _deferred_.[[Resolve]].
+1. Let _fulfillmentHandler_ be a new built-in function object as defined in Identity Functions.
 1. If IsCallable(_onFulfilled_), set _fulfillmentHandler_ to _onFulfilled_.
 1. Let _resolutionHandler_ be a new built-in function object as defined in Promise Resolution Handler Functions.
 1. Set the [[Promise]] internal slot of _resolutionHandler_ to _promise_.

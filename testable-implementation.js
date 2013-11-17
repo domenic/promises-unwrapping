@@ -162,6 +162,12 @@ function make_DeferredConstructionFunction() {
     return F;
 }
 
+function make_IdentityFunction() {
+    return function (x) {
+        return x;
+    };
+}
+
 function make_PromiseDotAllCountdownFunction() {
     let F = function (x) {
         let index = get_slot(F, "[[Index]]");
@@ -282,6 +288,12 @@ function make_ResolvePromiseFunction() {
     make_slots(F, ["[[Promise]]"]);
 
     return F;
+}
+
+function make_ThrowerFunction() {
+    return function (e) {
+        throw e;
+    };
 }
 
 // ## Microtasks for Promise Objects
@@ -421,12 +433,12 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
     let C = Get(promise, "constructor");
     let deferred = GetDeferred(C);
 
-    let rejectionHandler = deferred["[[Reject]]"];
+    let rejectionHandler = make_ThrowerFunction();
     if (IsCallable(onRejected)) {
         rejectionHandler = onRejected;
     }
 
-    let fulfillmentHandler = deferred["[[Resolve]]"];
+    let fulfillmentHandler = make_IdentityFunction();
     if (IsCallable(onFulfilled)) {
         fulfillmentHandler = onFulfilled;
     }

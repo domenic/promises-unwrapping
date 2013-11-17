@@ -140,14 +140,13 @@ function UpdateDeferredFromPotentialThenable(x, deferred) {
         return "not a thenable";
     }
 
+    ThenableCoercionsSet(realmForThisGlobal, x, deferred["[[Promise]]"]);
     try {
         then.call(x, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
     } catch (thenCallResultE) {
         deferred["[[Reject]]"].call(undefined, thenCallResultE);
         return;
     }
-
-    ThenableCoercionsSet(realmForThisGlobal, x, deferred["[[Promise]]"]);
 }
 
 // ## Built-in Functions for Promise Objects

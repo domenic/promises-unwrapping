@@ -127,12 +127,11 @@ The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and
     1. Return.
 1. Let _then_ be _then_.[[value]].
 1. If IsCallable(_then_) is **false**, return `"not a thenable"`.
+1. Call ThenableCoercionsSet(_realm_, _x_, _deferred_.[[Promise]]).
 1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a List containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
 1. If _thenCallResult_ is an abrupt completion,
     1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _thenCallResult_.[[value]] as _argumentsList_.
     1. ReturnIfAbrupt(_rejectResult_).
-    1. Return.
-1. Call ThenableCoercionsSet(_realm_, _x_, _deferred_.[[Promise]]).
 
 ## Built-in Functions for Promise Objects
 

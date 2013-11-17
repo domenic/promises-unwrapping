@@ -111,9 +111,7 @@ function PromiseResolve(promise, resolution) {
 
 function TriggerPromiseReactions(reactions, argument) {
     reactions.forEach(function (reaction) {
-        QueueAMicrotask(function () {
-            reaction.call(undefined, argument);
-        })
+        QueueMicrotask(Microtask_CallPromiseReaction, [reaction, argument]);
     });
 }
 
@@ -286,6 +284,12 @@ function make_ResolvePromiseFunction() {
     return F;
 }
 
+// ## Microtasks for Promise Objects
+
+function Microtask_CallPromiseReaction(reaction, argument) {
+    return reaction.call(undefined, argument);
+}
+
 // ## The Promise Constructor
 
 // ### Promise
@@ -440,17 +444,13 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
     }
 
     if (get_slot(promise, "[[PromiseStatus]]") === "has-resolution") {
-        QueueAMicrotask(function () {
-            let resolution = get_slot(promise, "[[Result]]");
-            resolutionReaction.call(undefined, resolution);
-        });
+        let resolution = get_slot(promise, "[[Result]]");
+        QueueMicrotask(Microtask_CallPromiseReaction, [resolutionReaction, resolution]);
     }
 
     if (get_slot(promise, "[[PromiseStatus]]") === "has-rejection") {
-        QueueAMicrotask(function () {
-            let reason = get_slot(promise, "[[Result]]");
-            rejectionReaction.call(undefined, reason);
-        });
+        let reason = get_slot(promise, "[[Result]]");
+        QueueMicrotask(Microtask_CallPromiseReaction, [rejectionReaction, reason]);
     }
 
     return deferred["[[Promise]]"];
@@ -490,9 +490,9 @@ function ArrayCreate(n) {
     return new Array(n);
 }
 
-function QueueAMicrotask(func) {
+function QueueMicrotask(microtask, argumentsList) {
     process.nextTick(function () {
-        func();
+        microtask.apply(undefined, argumentsList);
     });
 }
 

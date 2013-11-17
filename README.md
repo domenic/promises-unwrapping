@@ -107,8 +107,7 @@ The abstract operation PromiseResolve resolves a promise with a value.
 The abstract operation TriggerPromiseReactions takes a collection of functions to trigger in the next microtask, and calls them, passing each the given argument. Typically, these reactions will modify a previously-returned promise, possibly calling in to a user-supplied handler before doing so.
 
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
-    1. Queue a microtask to:
-        1. Return the result of calling the [[Call]] internal method of _reaction_ with **undefined** as _thisArgument_ and a List containing _argument_ as _argumentsList_.
+    1. Call QueueMicrotask(CallPromiseReaction, (_reaction_, _argument_)).
 
 ### UpdateDeferredFromPotentialThenable ( x, deferred, realm )
 
@@ -237,6 +236,12 @@ When a resolve promise function _F_ is called with argument _resolution_, the fo
 
 1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
 1. Return the result of calling PromiseResolve(_promise_, _resolution_).
+
+## Microtasks for Promise Objects
+
+### Microtask CallPromiseReaction( reaction, argument )
+
+1. Return the result of calling the [[Call]] internal method of _reaction_ with **undefined** as _thisArgument_ and a List containing _argument_ as _argumentsList_.
 
 ## The Promise Constructor
 
@@ -416,12 +421,12 @@ Note: The `catch` function is intentionally generic; it does not require that it
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"unresolved"`,
     1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal slot.
     1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal slot.
-1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`, queue a microtask to do the following:
+1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`,
     1. Let _resolution_ be the value of _promise_'s [[Result]] internal slot.
-    1. Return the result of calling the [[Call]] internal method of _resolveReaction_ with **undefined** as _thisArgument_ and a List containing _resolution_ as _argumentsList_.
-1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`, queue a microtask to do the following:
+    1. Call QueueMicrotask(CallPromiseReaction, _resolveReaction_, _resolution_).
+1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`,
     1. Let _reason_ be the value of _promise_'s [[Result]] internal slot.
-    1. Return the result of calling the [[Call]] internal method of _rejectReaction_ with **undefined** as _thisArgument_ and a List containing _reason_ as _argumentsList_.
+    1. Call QueueMicrotask(CallPromiseReaction, _rejectReaction_, _reason_).
 1. Return _deferred_.[[Promise]].
 
 Note: The `then` function is not generic. If the **this** value is not an object with an [[PromiseStatus]] internal slot initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
@@ -463,6 +468,16 @@ Promise instances are ordinary objects that inherit properties from the Promise 
 </table>
 
 # Deltas to Other Areas of the Spec
+
+## ???
+
+Somewhere in the spec—I'm not sure where—add the following abstract operation:
+
+### QueueMicrotask ( microtask, argumentsList )
+
+The abstract operation QueueMicrotask performs the implementation-specific operation of "queueing a microtask" to run the given microtask steps. The only important invariant required by this specification is that the microtask steps must be run with an empty execution context stack. Once this is guaranteed,
+
+1. Run the steps specified by _microtask_, passing _argumentsList_.
 
 ## Well-Known Intrinsic Objects Table
 

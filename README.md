@@ -168,13 +168,17 @@ When a promise reaction function _F_ is called with argument _x_, the following 
 
 A promise resolution handler function is an anonymous function that has the ability to handle a promise being resolved, by "unwrapping" any incoming values until they are no longer promises or thenables and can be passed to the appropriate fulfillment handler.
 
-Each promise resolution handler function has [[PromiseConstructor]], [[FulfillmentHandler]], and [[RejectionHandler]] internal slots.
+Each promise resolution handler function has [[Promise]], [[FulfillmentHandler]], and [[RejectionHandler]] internal slots.
 
 When a promise resolution handler function _F_ is called with argument _x_, the following steps are taken:
 
-1. Let _C_ be the value of _F_'s [[PromiseConstructor]] internal slot.
+1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
 1. Let _fulfillmentHandler_ be the value of _F_'s [[FulfillmentHandler]] internal slot.
 1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
+1. If SameValue(_x_, _promise_) is **true**,
+    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
+    1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and a list containing _selfResolutionError_ as _argumentsList_.
+1. Let _C_ be the value of _promise_'s [[PromiseConstructor]] internal slot.
 1. If IsPromise(_x_) is **true**,
     1. Let _xConstructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
     1. If SameValue(_xConstructor_, _C_) is **true**, return the result of calling Invoke(_x_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
@@ -374,7 +378,7 @@ Note: The `catch` function is intentionally generic; it does not require that it
 1. Let _fulfillmentHandler_ be _deferred_.[[Resolve]].
 1. If IsCallable(_onFulfilled_), set _fulfillmentHandler_ to _onFulfilled_.
 1. Let _resolutionHandler_ be a new built-in function object as defined in Promise Resolution Handler Functions.
-1. Set the [[PromiseConstructor]] internal slot of _resolutionHandler_ to _C_.
+1. Set the [[Promise]] internal slot of _resolutionHandler_ to _promise_.
 1. Set the [[FulfillmentHandler]] internal slot of _resolutionHandler_ to _fulfillmentHandler_.
 1. Set the [[RejectionHandler]] internal slot of _resolutionHandler_ to _rejectionHandler_.
 1. Let _resolveReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _resolutionHandler_).

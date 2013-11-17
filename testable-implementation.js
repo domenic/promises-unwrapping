@@ -206,11 +206,17 @@ function make_PromiseReactionFunction() {
 
 function make_PromiseResolutionHandlerFunction() {
     let F = function (x) {
-        let C = get_slot(F, "[[PromiseConstructor]]");
+        let promise = get_slot(F, "[[Promise]]");
         let fulfillmentHandler = get_slot(F, "[[FulfillmentHandler]]");
         let rejectionHandler = get_slot(F, "[[RejectionHandler]]");
 
-        if (SameValue(x, promise)) {
+        if (SameValue(x, promise) === true) {
+            let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
+            return rejectionHandler.call(undefined, selfResolutionError);
+        }
+
+        let C = get_slot(promise, "[[PromiseConstructor]]");
+
         if (IsPromise(x)) {
             let xConstructor = get_slot(x, "[[PromiseConstructor]]");
             if (SameValue(xConstructor, C) === true) {
@@ -226,7 +232,7 @@ function make_PromiseResolutionHandlerFunction() {
         return fulfillmentHandler.call(undefined, x);
     };
 
-    make_slots(F, ["[[PromiseConstructor]]", "[[FulfillmentHandler]]", "[[RejectionHandler]]"]);
+    make_slots(F, ["[[Promise]]", "[[FulfillmentHandler]]", "[[RejectionHandler]]"]);
 
     return F;
 }
@@ -396,7 +402,7 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
         fulfillmentHandler = onFulfilled;
     }
     let resolutionHandler = make_PromiseResolutionHandlerFunction();
-    set_slot(resolutionHandler, "[[PromiseConstructor]]", C);
+    set_slot(resolutionHandler, "[[Promise]]", promise);
     set_slot(resolutionHandler, "[[FulfillmentHandler]]", fulfillmentHandler);
     set_slot(resolutionHandler, "[[RejectionHandler]]", rejectionHandler);
 

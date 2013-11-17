@@ -25,6 +25,23 @@ function fulfilledThenable(value) {
     return thenable;
 }
 
+describe("Self-resolution errors", function () {
+    var deferred = adapter.deferred();
+
+    deferred.promise.then(
+        function () {
+            assert(false, "Should not be fulfilled");
+            done();
+        },
+        function (err) {
+            assert(err instanceof TypeError);
+            done();
+        }
+    );
+
+    deferred.resolve(deferred.promise);
+});
+
 describe.skip("Memoization of thenables", function () {
     specify("retrieving a value twice, in parallel, should only call `then` once.", function (done) {
         var deferred = adapter.deferred();
@@ -34,8 +51,8 @@ describe.skip("Memoization of thenables", function () {
         deferred.resolve();
 
         setTimeout(function () {
-            assert.strictEqual(thenable.timesCalled, 0);
-            assert.strictEqual(thenable.timesGotten, 0);
+            assert.strictEqual(thenable.timesCalled, 1);
+            assert.strictEqual(thenable.timesGotten, 1);
             var valuesGotten = 0;
 
             adapter.done(derived, function (value) {
@@ -69,8 +86,8 @@ describe.skip("Memoization of thenables", function () {
         deferred.resolve();
 
         setTimeout(function () {
-            assert.strictEqual(thenable.timesCalled, 0);
-            assert.strictEqual(thenable.timesGotten, 0);
+            assert.strictEqual(thenable.timesCalled, 1);
+            assert.strictEqual(thenable.timesGotten, 1);
             var valuesGotten = 0;
 
             adapter.done(derived, function (value) {

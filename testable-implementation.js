@@ -96,42 +96,37 @@ function PromiseResolve(promise, resolution) {
     TriggerPromiseReactions(reactions, resolution);
 }
 
-function ThenableToPromise(C, x) {
-    if (IsPromise(x)) {
-        return x;
-    }
-
-    if (!TypeIsObject(x)) {
-        return x;
-    }
-
-    let deferred = GetDeferred(C);
-
-    let then;
-    try {
-        then = Get(x, "then");
-    } catch (thenE) {
-        return RejectIfAbrupt(thenE, deferred);
-    }
-
-    if (IsCallable(then) === false) {
-        return x;
-    }
-
-    try {
-        then.call(x, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
-    } catch (thenCallResultE) {
-        return RejectIfAbrupt(thenCallResultE, deferred);
-    }
-    return deferred["[[Promise]]"];
-}
-
 function TriggerPromiseReactions(reactions, argument) {
     reactions.forEach(function (reaction) {
         QueueAMicrotask(function () {
             Call(reaction, argument);
         })
     });
+}
+
+function UpdateDeferredFromPotentialThenable(x, deferred) {
+    if (!TypeIsObject(x)) {
+        return "not a thenable";
+    }
+
+    let then;
+    try {
+        then = Get(x, "then");
+    } catch (thenE) {
+        Call(deferred["[[Reject]]"], thenE);
+        return;
+    }
+
+    if (IsCallable(then) === false) {
+        return "not a thenable";
+    }
+
+    try {
+        then.call(x, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
+    } catch (thenCallResultE) {
+        Call(deferred["[[Reject]]"], thenCallResultE);
+        return;
+    }
 }
 
 // ## Built-in Functions for Promise Objects
@@ -192,33 +187,15 @@ function make_PromiseReactionFunction() {
             return;
         }
 
-        if (!TypeIsObject(handlerResult)) {
-            Call(deferred["[[Resolve]]"], handlerResult);
-            return;
-        }
-
         if (SameValue(handlerResult, deferred["[[Promise]]"]) === true) {
             let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
             Call(deferred["[[Reject]]"], selfResolutionError);
-        }
-
-        let then;
-        try {
-            then = Get(handlerResult, "then");
-        } catch (thenE) {
-            Call(deferred["[[Reject]]"], thenE);
             return;
         }
 
-        if (IsCallable(then) === false) {
+        let updateResult = UpdateDeferredFromPotentialThenable(handlerResult, deferred);
+        if (updateResult === "not a thenable") {
             Call(deferred["[[Resolve]]"], handlerResult);
-            return;
-        }
-
-        try {
-            then.call(handlerResult, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
-        } catch (thenCallResultE) {
-            Call(deferred["[[Reject]]"], thenCallResultE);
         }
     };
 
@@ -233,12 +210,20 @@ function make_PromiseResolutionHandlerFunction() {
         let fulfillmentHandler = get_slot(F, "[[FulfillmentHandler]]");
         let rejectionHandler = get_slot(F, "[[RejectionHandler]]");
 
-        let coerced = ThenableToPromise(C, x);
-        if (IsPromise(coerced)) {
-            return coerced.then(fulfillmentHandler, rejectionHandler);
+        if (SameValue(x, promise)) {
+        if (IsPromise(x)) {
+            let xConstructor = get_slot(x, "[[PromiseConstructor]]");
+            if (SameValue(xConstructor, C) === true) {
+                return x.then(fulfillmentHandler, rejectionHandler);
+            }
         }
 
-        return fulfillmentHandler(x);
+        let deferred = GetDeferred(C);
+        let updateResult = UpdateDeferredFromPotentialThenable(x, deferred);
+        if (updateResult !== "not a thenable") {
+            return deferred["[[Promise]]"].then(fulfillmentHandler, rejectionHandler);
+        }
+        return fulfillmentHandler.call(undefined, x);
     };
 
     make_slots(F, ["[[PromiseConstructor]]", "[[FulfillmentHandler]]", "[[RejectionHandler]]"]);

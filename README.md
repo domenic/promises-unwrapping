@@ -85,21 +85,6 @@ The abstract operation PromiseResolve resolves a promise with a value.
 1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-resolution"`.
 1. Call TriggerPromiseReactions(_reactions_, _resolution_).
 
-### ThenableToPromise ( C, x )
-
-The abstract operation ThenableToPromise takes a value _x_ and tests if it is a non-promise thenable. If so, it returns a promise derived from that thenable and constructed with the constructor _C_; otherwise, it returns the value back.
-
-1. If IsPromise(_x_) is **true**, return _x_.
-1. If Type(_x_) is not Object, return _x_.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_C_).
-1. Let _then_ be the result of calling Get(_x_, `"then"`).
-1. RejectIfAbrupt(_then_, _deferred_).
-1. If IsCallable(_then_) is **false**, return _x_.
-1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a list containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
-1. RejectIfAbrupt(_thenCallResult_, _deferred_).
-1. Return _deferred_.[[Promise]].
-
 ### TriggerPromiseReactions ( reactions, argument )
 
 The abstract operation TriggerPromiseReactions takes a collection of functions to trigger in the next microtask, and calls them, passing each the given argument. Typically, these reactions will modify a previously-returned promise, possibly calling in to a user-supplied handler before doing so.
@@ -107,6 +92,21 @@ The abstract operation TriggerPromiseReactions takes a collection of functions t
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
     1. Queue a microtask to:
         1. Call(_reaction_, _argument_).
+
+### UpdateDeferredFromPotentialThenable ( x, deferred )
+
+The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and tests if it is a thenable. If so, it tries to use _x_'s `then` method to resolve _deferred_. Otherwise, it returns `"not a thenable"`.
+
+1. If Type(_x_) is not Object, return `"not a thenable"`.
+1. Let _then_ be the result of calling Get(_x_, `"then"`).
+1. If _then_ is an abrupt completion,
+    1. Call(_deferred_.[[Reject]], _then_.[[value]]).
+    1. Return.
+1. Let _then_ be _then_.[[value]].
+1. If IsCallable(_then_) is **false**, return `"not a thenable"`.
+1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a list containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
+1. If _thenCallResult_ is an abrupt completion,
+    1. Call(_deferred_.[[Reject]], _thenCallResult_.[[value]]).
 
 ## Built-in Functions for Promise Objects
 
@@ -155,24 +155,14 @@ When a promise reaction function _F_ is called with argument _x_, the following 
     1. Call(_deferred_.[[Reject]], _handlerResult_.[[value]]).
     1. Return.
 1. Let _handlerResult_ be _handlerResult_.[[value]].
-1. If Type(_handlerResult_) is not Object,
-    1. Call(_deferred_.[[Resolve]], _handlerResult_).
-    1. Return.
 1. If SameValue(_handlerResult_, _deferred_.[[Promise]]) is **true**,
     1. Let _selfResolutionError_ be a newly-created **TypeError** object.
     1. Call(_deferred_.[[Reject]], _selfResolutionError_).
-1. Let _then_ be the result of calling Get(_handlerResult_, `"then"`).
-1. If _then_ is an abrupt completion,
-    1. Call(_deferred_.[[Reject]], _then_.[[value]]).
     1. Return.
-1. Let _then_ be _then_.[[value]].
-1. If IsCallable(_then_) is **false**,
+1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_handlerResult_, _deferred_).
+1. ReturnIfAbrupt(_updateResult_).
+1. If _updateResult_ is `"not a thenable"`,
     1. Call(_deferred_.[[Resolve]], _handlerResult_).
-    1. Return.
-1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _handlerResult_ as _thisArgument_ and a list containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
-1. If _thenCallResult_ is an abrupt completion,
-    1. Call(_deferred_.[[Reject]], _then_.[[value]]).
-    1. Return.
 
 ### Promise Resolution Handler Functions
 
@@ -185,8 +175,14 @@ When a promise resolution handler function _F_ is called with argument _x_, the 
 1. Let _C_ be the value of _F_'s [[PromiseConstructor]] internal slot.
 1. Let _fulfillmentHandler_ be the value of _F_'s [[FulfillmentHandler]] internal slot.
 1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
-1. Let _coerced_ be the result of calling ThenableToPromise(_C_, _x_).
-1. If IsPromise(_coerced_) is **true**, return the result of calling Invoke(_coerced_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
+1. If IsPromise(_x_) is **true**,
+    1. Let _xConstructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
+    1. If SameValue(_xConstructor_, _C_) is **true**, return the result of calling Invoke(_x_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
+1. Let _deferred_ be the result of calling GetDeferred(_C_).
+1. ReturnIfAbrupt(_deferred_).
+1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_x_, _deferred_).
+1. ReturnIfAbrupt(_updateResult_).
+1. If _updateResult_ is not `"not a thenable"`, return the result of calling Invoke(_deferred_.[[Promise]], `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
 1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
 
 ### Reject Promise Functions

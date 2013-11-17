@@ -8,7 +8,7 @@ It is meant to succeed the current [DOM Promises](http://dom.spec.whatwg.org/#pr
 
 ### The Deferred Specification Type
 
-The Deffered type is used to encapsulate newly-created promise objects along with functions that resolve or reject them. Deferred objects are derived by the GetDeferred abstract operation from either the Promise constructor itself or from a constructor that subclasses the Promise constructor. This mechanism allows promise subclasses to install custom resolve and reject behavior by creating constructors that pass appropriate functions to their resolver argument.
+The Deferred type is used to encapsulate newly-created promise objects along with functions that resolve or reject them. Deferred objects are derived by the GetDeferred abstract operation from either the Promise constructor itself or from a constructor that subclasses the Promise constructor. This mechanism allows promise subclasses to install custom resolve and reject behavior by creating constructors that pass appropriate functions to their resolver argument.
 
 Deferreds are Records composed of three named fields:
 
@@ -25,7 +25,7 @@ Deferreds are Records composed of three named fields:
     1. If SameValue(_constructor_, _C_) is **true**, return _x_.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Call(_deferred_.[[Resolve]], _x_).
+1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
 1. Return _deferred_.[[Promise]].
 
 ### GetDeferred ( C )
@@ -91,7 +91,7 @@ The abstract operation TriggerPromiseReactions takes a collection of functions t
 
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
     1. Queue a microtask to:
-        1. Call(_reaction_, _argument_).
+        1. Return the result of calling the [[Call]] internal method of _reaction_ with **undefined** as _thisArgument_ and a List containing _argument_ as _argumentsList_.
 
 ### UpdateDeferredFromPotentialThenable ( x, deferred )
 
@@ -100,13 +100,15 @@ The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and
 1. If Type(_x_) is not Object, return `"not a thenable"`.
 1. Let _then_ be the result of calling Get(_x_, `"then"`).
 1. If _then_ is an abrupt completion,
-    1. Call(_deferred_.[[Reject]], _then_.[[value]]).
+    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _then_.[[value]] as _argumentsList_.
+    1. ReturnIfAbrupt(_rejectResult_).
     1. Return.
 1. Let _then_ be _then_.[[value]].
 1. If IsCallable(_then_) is **false**, return `"not a thenable"`.
-1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a list containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
+1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a List containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
 1. If _thenCallResult_ is an abrupt completion,
-    1. Call(_deferred_.[[Reject]], _thenCallResult_.[[value]]).
+    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _thenCallResult_.[[value]] as _argumentsList_.
+    1. ReturnIfAbrupt(_rejectResult_).
 
 ## Built-in Functions for Promise Objects
 
@@ -138,7 +140,7 @@ When a Promise.all countdown function _F_ is called with argument _x_, the follo
 1. RejectIfAbrupt(_result_, _deferred_).
 1. Set _countdownHolder_.[[Countdown]] to _countdownHolder_.[[Countdown]] - 1.
 1. If _countdownHolder_.[[Countdown]] is 0,
-    1. Call(_deferred_.[[Resolve]], _values_).
+    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _values_ as _argumentsList_.
 
 ### Promise Reaction Functions
 
@@ -150,19 +152,16 @@ When a promise reaction function _F_ is called with argument _x_, the following 
 
 1. Let _deferred_ be the value of _F_'s [[Deferred]] internal slot.
 1. Let _handler_ be the value of _F_'s [[Handler]] internal slot.
-1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
-1. If _handlerResult_ is an abrupt completion,
-    1. Call(_deferred_.[[Reject]], _handlerResult_.[[value]]).
-    1. Return.
+1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
+1. If _handlerResult_ is an abrupt completion, return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_.[[value]] as _argumentsList_.
 1. Let _handlerResult_ be _handlerResult_.[[value]].
 1. If SameValue(_handlerResult_, _deferred_.[[Promise]]) is **true**,
     1. Let _selfResolutionError_ be a newly-created **TypeError** object.
-    1. Call(_deferred_.[[Reject]], _selfResolutionError_).
-    1. Return.
+    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_
 1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_handlerResult_, _deferred_).
 1. ReturnIfAbrupt(_updateResult_).
 1. If _updateResult_ is `"not a thenable"`,
-    1. Call(_deferred_.[[Resolve]], _handlerResult_).
+    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_ as _argumentsList_.
 
 ### Promise Resolution Handler Functions
 
@@ -177,7 +176,7 @@ When a promise resolution handler function _F_ is called with argument _x_, the 
 1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
 1. If SameValue(_x_, _promise_) is **true**,
     1. Let _selfResolutionError_ be a newly-created **TypeError** object.
-    1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and a list containing _selfResolutionError_ as _argumentsList_.
+    1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_.
 1. Let _C_ be the value of _promise_'s [[PromiseConstructor]] internal slot.
 1. If IsPromise(_x_) is **true**,
     1. Let _xConstructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
@@ -187,7 +186,7 @@ When a promise resolution handler function _F_ is called with argument _x_, the 
 1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_x_, _deferred_).
 1. ReturnIfAbrupt(_updateResult_).
 1. If _updateResult_ is not `"not a thenable"`, return the result of calling Invoke(_deferred_.[[Promise]], `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
-1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and a list containing _x_ as _argumentsList_.
+1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
 
 ### Reject Promise Functions
 
@@ -275,7 +274,8 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
     1. RejectIfAbrupt(_next_, _deferred_).
     1. If _next_ is **false**,
         1. If _index_ is 0,
-            1. Call(_deferred_.[[Resolve]], _values_).
+            1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _values_ as _argumentsList_.
+            1. ReturnIfAbrupt(_resolveResult_).
         1. Return _deferred_.[[Promise]].
     1. Let _nextValue_ be the result of calling IteratorValue(_next_).
     1. RejectIfAbrupt(_nextValue_, _deferred_).
@@ -331,7 +331,8 @@ Note: The `race` function is an intentionally generic utility method; it does no
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Call(_deferred_.[[Reject]], _r_).
+1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _r_ as _argumentsList_.
+1. ReturnIfAbrupt(_rejectResult_).
 1. Return _deferred_.[[Promise]].
 
 Note: The `reject` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
@@ -343,7 +344,8 @@ Note: The `reject` function is an intentionally generic factory method; it does 
 1. Let _C_ be the **this** value.
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Call(_deferred_.[[Resolve]], _x_).
+1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
+1. ReturnIfAbrupt(_resolveResult_).
 1. Return _deferred_.[[Promise]].
 
 Note: The `resolve` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
@@ -384,14 +386,14 @@ Note: The `catch` function is intentionally generic; it does not require that it
 1. Let _resolveReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _resolutionHandler_).
 1. Let _rejectReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _rejectionHandler_).
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"unresolved"`,
-     1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal slot.
-     1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal slot.
+    1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal slot.
+    1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal slot.
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`, queue a microtask to do the following:
-     1. Let _resolution_ be the value of _promise_'s [[Result]] internal slot.
-     1. Call(_resolveReaction_, _resolution_).
+    1. Let _resolution_ be the value of _promise_'s [[Result]] internal slot.
+    1. Return the result of calling the [[Call]] internal method of _resolveReaction_ with **undefined** as _thisArgument_ and a List containing _resolution_ as _argumentsList_.
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`, queue a microtask to do the following:
-     1. Let _resolution_ be the value of _promise_'s [[Rejection]] internal slot.
-     1. Call(_rejectReaction_, _reason_).
+    1. Let _reason_ be the value of _promise_'s [[Result]] internal slot.
+    1. Return the result of calling the [[Call]] internal method of _rejectReaction_ with **undefined** as _thisArgument_ and a List containing _reason_ as _argumentsList_.
 1. Return _deferred_.[[Promise]].
 
 Note: The `then` function is not generic. If the **this** value is not an object with an [[PromiseStatus]] internal slot initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
@@ -462,20 +464,10 @@ Algorithm steps that say
 mean the same things as:
 
 1. If _argument_ is an abrupt completion,
-    1. Call(_deferred_.[[Reject]], _argument_.[[value]]).
+    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _argument_.[[value]] as _argumentsList_.
+    1. ReturnIfAbrupt(_rejectResult_).
     1. Return _deferred_.[[Promise]].
 1. Else if _argument_ is a Completion Record, then let _argument_ be _argument_.[[value]].
-
-### Call
-
-Algorithm steps that say
-
-1. Call(_function_, _argument_).
-
-Mean the same things as:
-
-1. Let _result_ be the result of calling the [[Call]] internal method of _function_ with **undefined** as _thisArgument_ and a list containing _argument_ as _argumentsList_.
-1. ReturnIfAbrupt(_result_).
 
 ---
 

@@ -15,7 +15,7 @@ function CastToPromise(C, x) {
         }
     }
     let deferred = GetDeferred(C);
-    Call(deferred["[[Resolve]]"], x);
+    deferred["[[Resolve]]"].call(undefined, x);
     return deferred["[[Promise]]"];
 }
 
@@ -99,7 +99,7 @@ function PromiseResolve(promise, resolution) {
 function TriggerPromiseReactions(reactions, argument) {
     reactions.forEach(function (reaction) {
         QueueAMicrotask(function () {
-            Call(reaction, argument);
+            reaction.call(undefined, argument);
         })
     });
 }
@@ -113,7 +113,7 @@ function UpdateDeferredFromPotentialThenable(x, deferred) {
     try {
         then = Get(x, "then");
     } catch (thenE) {
-        Call(deferred["[[Reject]]"], thenE);
+        deferred["[[Reject]]"].call(undefined, thenE);
         return;
     }
 
@@ -124,8 +124,7 @@ function UpdateDeferredFromPotentialThenable(x, deferred) {
     try {
         then.call(x, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
     } catch (thenCallResultE) {
-        Call(deferred["[[Reject]]"], thenCallResultE);
-        return;
+        deferred["[[Reject]]"].call(undefined, thenCallResultE);
     }
 }
 
@@ -165,7 +164,7 @@ function make_PromiseDotAllCountdownFunction() {
         countdownHolder["[[Countdown]]"] = countdownHolder["[[Countdown]]"] - 1;
 
         if (countdownHolder["[[Countdown]]"] === 0) {
-            Call(deferred["[[Resolve]]"], values);
+            return deferred["[[Resolve]]"].call(undefined, values);
         }
     };
 
@@ -183,19 +182,17 @@ function make_PromiseReactionFunction() {
         try {
             handlerResult = handler.call(undefined, x);
         } catch (handlerResultE) {
-            Call(deferred["[[Reject]]"], handlerResultE);
-            return;
+            return deferred["[[Reject]]"].call(undefined, handlerResultE);
         }
 
         if (SameValue(handlerResult, deferred["[[Promise]]"]) === true) {
             let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
-            Call(deferred["[[Reject]]"], selfResolutionError);
-            return;
+            return deferred["[[Reject]]"].call(undefined, selfResolutionError);
         }
 
         let updateResult = UpdateDeferredFromPotentialThenable(handlerResult, deferred);
         if (updateResult === "not a thenable") {
-            Call(deferred["[[Resolve]]"], handlerResult);
+            return deferred["[[Resolve]]"].call(undefined, handlerResult);
         }
     };
 
@@ -350,7 +347,7 @@ define_method(Promise, "all", function (iterable) {
     }
 
     if (index === 0) {
-        Call(deferred["[[Resolve]]"], values);
+        deferred["[[Resolve]]"].call(undefined, values);
     }
 
     return deferred["[[Promise]]"];
@@ -359,14 +356,14 @@ define_method(Promise, "all", function (iterable) {
 define_method(Promise, "resolve", function (x) {
     let C = this;
     let deferred = GetDeferred(C);
-    Call(deferred["[[Resolve]]"], x);
+    deferred["[[Resolve]]"].call(undefined, x);
     return deferred["[[Promise]]"];
 });
 
 define_method(Promise, "reject", function (r) {
     let C = this;
     let deferred = GetDeferred(C);
-    Call(deferred["[[Reject]]"], r);
+    deferred["[[Reject]]"].call(undefined, r);
     return deferred["[[Promise]]"];
 });
 
@@ -417,14 +414,14 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
     if (get_slot(promise, "[[PromiseStatus]]") === "has-resolution") {
         QueueAMicrotask(function () {
             let resolution = get_slot(promise, "[[Result]]");
-            Call(resolutionReaction, resolution);
+            resolutionReaction.call(undefined, resolution);
         });
     }
 
     if (get_slot(promise, "[[PromiseStatus]]") === "has-rejection") {
         QueueAMicrotask(function () {
             let reason = get_slot(promise, "[[Result]]");
-            Call(rejectionReaction, reason);
+            rejectionReaction.call(undefined, reason);
         });
     }
 
@@ -478,12 +475,8 @@ function ES6New(Constructor) {
 function RejectIfAbrupt(argument, deferred) {
     // Usage: pass it exceptions; it only handles that case.
     // Always use `return` before it, i.e. `try { ... } catch (e) { return RejectIfAbrupt(e, deferred); }`.
-    Call(deferred["[[Reject]]"], argument);
+    deferred["[[Reject]]"].call(undefined, argument);
     return deferred["[[Promise]]"];
-}
-
-function Call(function_, argument) {
-    function_.call(undefined, argument);
 }
 
 //////

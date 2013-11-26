@@ -26,20 +26,21 @@ function fulfilledThenable(value) {
 }
 
 describe("Self-resolution errors", function () {
-    var deferred = adapter.deferred();
+    specify("directly resolving the promise with itself", function (done) {
+        var deferred = adapter.deferred();
+        deferred.resolve(deferred.promise);
 
-    deferred.promise.then(
-        function () {
-            assert(false, "Should not be fulfilled");
-            done();
-        },
-        function (err) {
-            assert(err instanceof TypeError);
-            done();
-        }
-    );
-
-    deferred.resolve(deferred.promise);
+        deferred.promise.then(
+            function () {
+                assert(false, "Should not be fulfilled");
+                done();
+            },
+            function (err) {
+                assert(err instanceof TypeError);
+                done();
+            }
+        );
+    });
 });
 
 describe("Memoization of thenables", function () {

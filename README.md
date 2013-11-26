@@ -116,8 +116,8 @@ The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and
 1. If Type(_x_) is not Object, return `"not a thenable"`.
 1. Let _coercedAlready_ be the result of calling ThenableCoercionsGet(_realm_, _x_).
 1. If _coercedAlready_ is not **undefined**,
-    1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _coercedAlready_ as _argumentsList_.
-    1. ReturnIfAbrupt(_resolveResult_).
+    1. Let _thenCallResult_ be the result of calling Invoke(_coercedAlready_, `"then"`, (_deferred_.[[Resolve]], _deferred_.[[Reject]])).
+    1. ReturnIfAbrupt(_thenCallResult_).
     1. Return.
 1. Let _then_ be the result of calling Get(_x_, `"then"`).
 1. If _then_ is an abrupt completion,

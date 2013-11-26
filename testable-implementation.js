@@ -122,7 +122,7 @@ function UpdateDeferredFromPotentialThenable(x, deferred) {
 
     let coercedAlready = ThenableCoercionsGet(realmForThisGlobal, x);
     if (coercedAlready !== undefined) {
-        deferred["[[Resolve]]"].call(undefined, coercedAlready);
+        coercedAlready.then(deferred["[[Resolve]]"], deferred["[[Reject]]"]);
         return;
     }
 

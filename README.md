@@ -463,11 +463,11 @@ Promise instances are ordinary objects that inherit properties from the Promise 
          </tr>
          <tr>
             <td>[[ResolveReactions]]</td>
-            <td>A List of functions to be processed when/if the promise transitions from being unresolved to having a resolution.</td>
+            <td>A List of PromiseReactions to be processed when/if the promise transitions from being unresolved to having a resolution.</td>
          </tr>
          <tr>
             <td>[[RejectReactions]]</td>
-            <td>A List of functions to be processed when/if the promise transitions from being unresolved to having a rejection.</td>
+            <td>A List of PromiseReactions to be processed when/if the promise transitions from being unresolved to having a rejection.</td>
          </tr>
     </tbody>
 </table>

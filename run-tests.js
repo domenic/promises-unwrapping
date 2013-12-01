@@ -25,6 +25,15 @@ function fulfilledThenable(value) {
     return thenable;
 }
 
+describe("Easy-to-debug sanity check", function () {
+    specify("a fulfilled promise calls its fulfillment handler", function (done) {
+        Promise.resolve(5).then(function (value) {
+            assert.strictEqual(value, 5);
+            done();
+        });
+    });
+});
+
 describe("Self-resolution errors", function () {
     specify("directly resolving the promise with itself", function (done) {
         var deferred = adapter.deferred();

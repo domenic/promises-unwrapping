@@ -64,13 +64,6 @@ function IsPromise(x) {
     return true;
 }
 
-function MakePromiseReactionFunction(deferred, handler) {
-    let F = make_PromiseReactionFunction();
-    set_slot(F, "[[Deferred]]", deferred);
-    set_slot(F, "[[Handler]]", handler);
-    return F;
-}
-
 function PromiseReject(promise, reason) {
     if (get_slot(promise, "[[PromiseStatus]]") !== "pending") {
         return;
@@ -99,7 +92,7 @@ function PromiseResolve(promise, resolution) {
 
 function TriggerPromiseReactions(reactions, argument) {
     reactions.forEach(function (reaction) {
-        QueueMicrotask(Microtask_CallPromiseReaction, [reaction, argument]);
+        QueueMicrotask(Microtask_ExecutePromiseReaction, [reaction, argument]);
     });
 }
 
@@ -186,34 +179,6 @@ function make_PromiseDotAllCountdownFunction() {
     return F;
 }
 
-function make_PromiseReactionFunction() {
-    let F = function (x) {
-        let deferred = get_slot(F, "[[Deferred]]");
-        let handler = get_slot(F, "[[Handler]]");
-
-        let handlerResult;
-        try {
-            handlerResult = handler.call(undefined, x);
-        } catch (handlerResultE) {
-            return deferred["[[Reject]]"].call(undefined, handlerResultE);
-        }
-
-        if (SameValue(handlerResult, deferred["[[Promise]]"]) === true) {
-            let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
-            return deferred["[[Reject]]"].call(undefined, selfResolutionError);
-        }
-
-        let updateResult = UpdateDeferredFromPotentialThenable(handlerResult, deferred);
-        if (updateResult === "not a thenable") {
-            return deferred["[[Resolve]]"].call(undefined, handlerResult);
-        }
-    };
-
-    make_slots(F, ["[[Deferred]]", "[[Handler]]"]);
-
-    return F;
-}
-
 function make_PromiseResolutionHandlerFunction() {
     let F = function (x) {
         let promise = get_slot(F, "[[Promise]]");
@@ -286,8 +251,26 @@ function make_ThrowerFunction() {
 
 // ## Microtasks for Promise Objects
 
-function Microtask_CallPromiseReaction(reaction, argument) {
-    return reaction.call(undefined, argument);
+function Microtask_ExecutePromiseReaction(reaction, argument) {
+    let deferred = reaction["[[Deferred]]"];
+    let handler = reaction["[[Handler]]"];
+
+    let handlerResult;
+    try {
+        handlerResult = handler.call(undefined, argument);
+    } catch (handlerResultE) {
+        return deferred["[[Reject]]"].call(undefined, handlerResultE);
+    }
+
+    if (SameValue(handlerResult, deferred["[[Promise]]"]) === true) {
+        let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
+        return deferred["[[Reject]]"].call(undefined, selfResolutionError);
+    }
+
+    let updateResult = UpdateDeferredFromPotentialThenable(handlerResult, deferred);
+    if (updateResult === "not a thenable") {
+        return deferred["[[Resolve]]"].call(undefined, handlerResult);
+    }
 }
 
 // ## The Promise Constructor
@@ -443,8 +426,8 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
     set_slot(resolutionHandler, "[[FulfillmentHandler]]", fulfillmentHandler);
     set_slot(resolutionHandler, "[[RejectionHandler]]", rejectionHandler);
 
-    let resolutionReaction = MakePromiseReactionFunction(deferred, resolutionHandler);
-    let rejectionReaction = MakePromiseReactionFunction(deferred, rejectionHandler);
+    let resolutionReaction = { "[[Deferred]]": deferred, "[[Handler]]": resolutionHandler };
+    let rejectionReaction = { "[[Deferred]]": deferred, "[[Handler]]": rejectionHandler };
 
     if (get_slot(promise, "[[PromiseStatus]]") === "pending") {
         get_slot(promise, "[[ResolveReactions]]").push(resolutionReaction);
@@ -453,12 +436,12 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
 
     if (get_slot(promise, "[[PromiseStatus]]") === "has-resolution") {
         let resolution = get_slot(promise, "[[Result]]");
-        QueueMicrotask(Microtask_CallPromiseReaction, [resolutionReaction, resolution]);
+        QueueMicrotask(Microtask_ExecutePromiseReaction, [resolutionReaction, resolution]);
     }
 
     if (get_slot(promise, "[[PromiseStatus]]") === "has-rejection") {
         let reason = get_slot(promise, "[[Result]]");
-        QueueMicrotask(Microtask_CallPromiseReaction, [rejectionReaction, reason]);
+        QueueMicrotask(Microtask_ExecutePromiseReaction, [rejectionReaction, reason]);
     }
 
     return deferred["[[Promise]]"];

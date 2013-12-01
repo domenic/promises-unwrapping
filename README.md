@@ -16,6 +16,15 @@ Deferreds are Records composed of three named fields:
 - [[Resolve]]: a function that is presumed to resolve the given promise object
 - [[Reject]]: a function that is presumed to reject the given promise object
 
+### The PromiseReaction Specification Type
+
+The PromiseReaction type is used to store information about how a promise should react when it becomes resolved or rejected with a given value. PromiseReaction objects are created by the `then` method of the Promise prototype, and are used by the ExecutePromiseReaction microtask.
+
+PromiseReactions are Records composed of two named fields:
+
+- [[Deferred]]: a Deferred record representing a derived promise and the ability to resolve or reject it.
+- [[Handler]]: a function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise.
+
 ## The Thenable Coercions Weak Map
 
 To successfully and consistently assimilate thenable objects into real promises, an implementation must maintain a per-realm weak map of thenables to promises. Notably, both the keys and the values must be weakly stored.
@@ -59,15 +68,6 @@ The abstract operation IsPromise checks for the promise brand on an object.
 1. If the value of _x_'s [[PromiseStatus]] internal slot is **undefined**, return **false**.
 1. Return **true**.
 
-### MakePromiseReactionFunction ( deferred, handler )
-
-The abstract operation MakePromiseReactionFunction creates a promise reaction function with internal slots initialized to the passed arguments.
-
-1. Let _F_ be a new built-in function object as defined in Promise Reaction Functions.
-1. Set the [[Deferred]] internal slot of _F_ to _deferred_.
-1. Set the [[Handler]] internal slot of _F_ to _handler_.
-1. Return _F_.
-
 ### PromiseReject ( promise, reason )
 
 The abstract operation PromiseReject rejects a promise with a reason.
@@ -97,7 +97,7 @@ The abstract operation PromiseResolve resolves a promise with a value.
 The abstract operation TriggerPromiseReactions takes a collection of functions to trigger in the next microtask, and calls them, passing each the given argument. Typically, these reactions will modify a previously-returned promise, possibly calling in to a user-supplied handler before doing so.
 
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
-    1. Call QueueMicrotask(CallPromiseReaction, (_reaction_, _argument_)).
+    1. Call QueueMicrotask(ExecutePromiseReaction, (_reaction_, _argument_)).
 
 ### UpdateDeferredFromPotentialThenable ( x, deferred, realm )
 
@@ -162,28 +162,6 @@ When a Promise.all countdown function _F_ is called with argument _x_, the follo
 1. If _countdownHolder_.[[Countdown]] is 0,
     1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _values_ as _argumentsList_.
 
-### Promise Reaction Functions
-
-A promise reaction function is an anonymous function that applies the appropriate handler to the incoming value, and uses the handler's return value to resolve or reject the derived promise associated with that handler.
-
-Each promise reaction function has [[Deferred]] and [[Handler]] internal slots.
-
-When a promise reaction function _F_ is called with argument _x_, the following steps are taken:
-
-1. Let _deferred_ be the value of _F_'s [[Deferred]] internal slot.
-1. Let _handler_ be the value of _F_'s [[Handler]] internal slot.
-1. Let _realm_ be the value of _F_'s [[Realm]] internal slot.
-1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
-1. If _handlerResult_ is an abrupt completion, return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_.[[value]] as _argumentsList_.
-1. Let _handlerResult_ be _handlerResult_.[[value]].
-1. If SameValue(_handlerResult_, _deferred_.[[Promise]]) is **true**,
-    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
-    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_
-1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_handlerResult_, _deferred_, _realm_).
-1. ReturnIfAbrupt(_updateResult_).
-1. If _updateResult_ is `"not a thenable"`,
-    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_ as _argumentsList_.
-
 ### Promise Resolution Handler Functions
 
 A promise resolution handler function is an anonymous function that has the ability to handle a promise being resolved, by "unwrapping" any incoming values until they are no longer promises or thenables and can be passed to the appropriate fulfillment handler.
@@ -245,9 +223,23 @@ When a thrower function is called with argument _e_, the following steps are tak
 
 ## Microtasks for Promise Objects
 
-### Microtask CallPromiseReaction( reaction, argument )
+### Microtask ExecutePromiseReaction( reaction, argument )
 
-1. Return the result of calling the [[Call]] internal method of _reaction_ with **undefined** as _thisArgument_ and a List containing _argument_ as _argumentsList_.
+The microtask ExecutePromiseReaction applies the appropriate handler to the incoming value, and uses the handler's return value to resolve or reject the derived promise associated with that handler.
+
+1. Let _deferred_ be _reaction_.[[Deferred]].
+1. Let _handler_ be _reaction_.[[Handler]].
+1. Let _realm_ be the value of _handler_'s [[Realm]] internal slot.
+1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and a List containing _argument_ as _argumentsList_.
+1. If _handlerResult_ is an abrupt completion, return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_.[[value]] as _argumentsList_.
+1. Let _handlerResult_ be _handlerResult_.[[value]].
+1. If SameValue(_handlerResult_, _deferred_.[[Promise]]) is **true**,
+    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
+    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_
+1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_handlerResult_, _deferred_, _realm_).
+1. ReturnIfAbrupt(_updateResult_).
+1. If _updateResult_ is `"not a thenable"`,
+    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_ as _argumentsList_.
 
 ## The Promise Constructor
 
@@ -429,17 +421,17 @@ Note: The `catch` function is intentionally generic; it does not require that it
 1. Set the [[Promise]] internal slot of _resolutionHandler_ to _promise_.
 1. Set the [[FulfillmentHandler]] internal slot of _resolutionHandler_ to _fulfillmentHandler_.
 1. Set the [[RejectionHandler]] internal slot of _resolutionHandler_ to _rejectionHandler_.
-1. Let _resolveReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _resolutionHandler_).
-1. Let _rejectReaction_ be the result of calling MakePromiseReactionFunction(_deferred_, _rejectionHandler_).
+1. Let _resolveReaction_ be the PromiseReaction { [[Deferred]]: _deferred_, [[Handler]]: _resolutionHandler_ }.
+1. Let _rejectReaction_ be the PromiseReaction { [[Deferred]]: _deferred_, [[Handler]]: _rejectionHandler_ }.
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"unresolved"`,
     1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal slot.
     1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal slot.
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`,
     1. Let _resolution_ be the value of _promise_'s [[Result]] internal slot.
-    1. Call QueueMicrotask(CallPromiseReaction, _resolveReaction_, _resolution_).
+    1. Call QueueMicrotask(ExecutePromiseReaction, (_resolveReaction_, _resolution_)).
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`,
     1. Let _reason_ be the value of _promise_'s [[Result]] internal slot.
-    1. Call QueueMicrotask(CallPromiseReaction, _rejectReaction_, _reason_).
+    1. Call QueueMicrotask(ExecutePromiseReaction, (_rejectReaction_, _reason_)).
 1. Return _deferred_.[[Promise]].
 
 Note: The `then` function is not generic. If the **this** value is not an object with an [[PromiseStatus]] internal slot initialized to **true**, a **TypeError** exception is immediately thrown when it is called.

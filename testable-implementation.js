@@ -20,18 +20,6 @@ function ThenableCoercionsSet(realm, thenable, promise) {
 
 // ## Abstract Operations for Promise Objects
 
-function CastToPromise(C, x) {
-    if (IsPromise(x) === true) {
-        let constructor = get_slot(x, "[[PromiseConstructor]]");
-        if (SameValue(constructor, C) === true) {
-            return x;
-        }
-    }
-    let deferred = GetDeferred(C);
-    deferred["[[Resolve]]"].call(undefined, x);
-    return deferred["[[Promise]]"];
-}
-
 function GetDeferred(C) {
     if (IsConstructor(C) === false) {
         throw new TypeError("Tried to construct a promise from a non-constructor.");
@@ -413,7 +401,15 @@ define_method(Promise, "reject", function (r) {
 
 define_method(Promise, "cast", function (x) {
     let C = this;
-    return CastToPromise(C, x);
+    if (IsPromise(x) === true) {
+        let constructor = get_slot(x, "[[PromiseConstructor]]");
+        if (SameValue(constructor, C) === true) {
+            return x;
+        }
+    }
+    let deferred = GetDeferred(C);
+    deferred["[[Resolve]]"].call(undefined, x);
+    return deferred["[[Promise]]"];
 });
 
 define_method(Promise, "race", function (iterable) {

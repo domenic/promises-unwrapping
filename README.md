@@ -61,7 +61,7 @@ The abstract operation PromiseReject rejects a promise with a reason.
 1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
 1. Set the value of _promise_'s [[RejectReactions]] internal slot to **undefined**.
 1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-rejection"`.
-1. Call TriggerPromiseReactions(_reactions_, _reason_).
+1. Return the result of calling TriggerPromiseReactions(_reactions_, _reason_).
 
 ### PromiseResolve ( promise, resolution )
 
@@ -73,7 +73,7 @@ The abstract operation PromiseResolve resolves a promise with a value.
 1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
 1. Set the value of _promise_'s [[RejectReactions]] internal slot to **undefined**.
 1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-resolution"`.
-1. Call TriggerPromiseReactions(_reactions_, _resolution_).
+1. Return the result of calling TriggerPromiseReactions(_reactions_, _resolution_).
 
 ### TriggerPromiseReactions ( reactions, argument )
 
@@ -81,6 +81,7 @@ The abstract operation TriggerPromiseReactions takes a collection of functions t
 
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
     1. Call QueueMicrotask(ExecutePromiseReaction, (_reaction_, _argument_)).
+1. Return.
 
 ### UpdateDeferredFromPotentialThenable ( x, deferred )
 
@@ -138,6 +139,7 @@ When a Promise.all countdown function _F_ is called with argument _x_, the follo
 1. Set _countdownHolder_.[[Countdown]] to _countdownHolder_.[[Countdown]] - 1.
 1. If _countdownHolder_.[[Countdown]] is 0,
     1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _values_ as _argumentsList_.
+1. Return.
 
 ### Promise Resolution Handler Functions
 

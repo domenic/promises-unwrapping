@@ -61,7 +61,7 @@ function PromiseReject(promise, reason) {
     set_slot(promise, "[[ResolveReactions]]", undefined);
     set_slot(promise, "[[RejectReactions]]", undefined);
     set_slot(promise, "[[PromiseStatus]]", "has-rejection");
-    TriggerPromiseReactions(reactions, reason);
+    return TriggerPromiseReactions(reactions, reason);
 }
 
 function PromiseResolve(promise, resolution) {
@@ -74,13 +74,15 @@ function PromiseResolve(promise, resolution) {
     set_slot(promise, "[[ResolveReactions]]", undefined);
     set_slot(promise, "[[RejectReactions]]", undefined);
     set_slot(promise, "[[PromiseStatus]]", "has-resolution");
-    TriggerPromiseReactions(reactions, resolution);
+    return TriggerPromiseReactions(reactions, resolution);
 }
 
 function TriggerPromiseReactions(reactions, argument) {
     reactions.forEach(function (reaction) {
         QueueMicrotask(Microtask_ExecutePromiseReaction, [reaction, argument]);
     });
+
+    return;
 }
 
 function UpdateDeferredFromPotentialThenable(x, deferred) {
@@ -151,6 +153,8 @@ function make_PromiseDotAllCountdownFunction() {
         if (countdownHolder["[[Countdown]]"] === 0) {
             return deferred["[[Resolve]]"].call(undefined, values);
         }
+
+        return;
     };
 
     make_slots(F, ["[[Index]]", "[[Values]]", "[[Deferred]]", "[[CountdownHolder]]"]);

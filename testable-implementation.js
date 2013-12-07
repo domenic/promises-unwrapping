@@ -5,19 +5,6 @@ let assert = require("assert");
 // polyfill there are much simpler and more performant ways. This implementation's focus is on 100% correctness in all
 // subtle details.
 
-// ## The Thenable Coercions Weak Map
-
-let realmForThisGlobal = { REALM: global };
-realmForThisGlobal.thenableCoercionsWeakMap = new WeakMap();
-
-function ThenableCoercionsGet(realm, thenable) {
-    return realm.thenableCoercionsWeakMap.get(thenable);
-}
-
-function ThenableCoercionsSet(realm, thenable, promise) {
-    realm.thenableCoercionsWeakMap.set(thenable, promise);
-}
-
 // ## Abstract Operations for Promise Objects
 
 function GetDeferred(C) {
@@ -101,12 +88,6 @@ function UpdateDeferredFromPotentialThenable(x, deferred) {
         return "not a thenable";
     }
 
-    let coercedAlready = ThenableCoercionsGet(realmForThisGlobal, x);
-    if (coercedAlready !== undefined) {
-        coercedAlready.then(deferred["[[Resolve]]"], deferred["[[Reject]]"]);
-        return;
-    }
-
     let then;
     try {
         then = Get(x, "then");
@@ -119,12 +100,10 @@ function UpdateDeferredFromPotentialThenable(x, deferred) {
         return "not a thenable";
     }
 
-    ThenableCoercionsSet(realmForThisGlobal, x, deferred["[[Promise]]"]);
     try {
         then.call(x, deferred["[[Resolve]]"], deferred["[[Reject]]"]);
     } catch (thenCallResultE) {
         deferred["[[Reject]]"].call(undefined, thenCallResultE);
-        return;
     }
 }
 
@@ -188,13 +167,6 @@ function make_PromiseResolutionHandlerFunction() {
         if (SameValue(x, promise) === true) {
             let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
             return rejectionHandler.call(undefined, selfResolutionError);
-        }
-
-        if (TypeIsObject(x)) {
-            let coercedAlready = ThenableCoercionsGet(realmForThisGlobal, x);
-            if (coercedAlready !== undefined) {
-                return coercedAlready.then(fulfillmentHandler, rejectionHandler);
-            }
         }
 
         let C = get_slot(promise, "[[PromiseConstructor]]");

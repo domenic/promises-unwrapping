@@ -25,23 +25,6 @@ PromiseReactions are Records composed of two named fields:
 - [[Deferred]]: a Deferred record representing a derived promise and the ability to resolve or reject it.
 - [[Handler]]: a function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise.
 
-## The Thenable Coercions Weak Map
-
-To successfully and consistently assimilate thenable objects into real promises, an implementation must maintain a per-realm weak map of thenables to promises. Notably, both the keys and the values must be weakly stored.
-
-This weak map is not exposed directly, and does not need to have any of the properties of a WeakMap object, apart from the same garbage collection properties.
-
-The algorithms of this specification access the thenable coercions weak map via the abstract operations ThenableCoercionsGet and ThenableCoercionsSet.
-
-### ThenableCoercionsGet ( realm, thenable )
-
-1. If _realm_'s thenable coercions weak map contains an entry with key _thenable_, return its value.
-1. Return **undefined**.
-
-### ThenableCoercionsSet ( realm, thenable, promise )
-
-1. Set an entry in _realm_'s thenable coercions weak map, with key _thenable_ and value _promise_.
-
 ## Abstract Operations for Promise Objects
 
 ### GetDeferred ( C )
@@ -99,16 +82,11 @@ The abstract operation TriggerPromiseReactions takes a collection of functions t
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
     1. Call QueueMicrotask(ExecutePromiseReaction, (_reaction_, _argument_)).
 
-### UpdateDeferredFromPotentialThenable ( x, deferred, realm )
+### UpdateDeferredFromPotentialThenable ( x, deferred )
 
 The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and tests if it is a thenable. If so, it tries to use _x_'s `then` method to resolve _deferred_. Otherwise, it returns `"not a thenable"`.
 
 1. If Type(_x_) is not Object, return `"not a thenable"`.
-1. Let _coercedAlready_ be the result of calling ThenableCoercionsGet(_realm_, _x_).
-1. If _coercedAlready_ is not **undefined**,
-    1. Let _thenCallResult_ be the result of calling Invoke(_coercedAlready_, `"then"`, (_deferred_.[[Resolve]], _deferred_.[[Reject]])).
-    1. ReturnIfAbrupt(_thenCallResult_).
-    1. Return.
 1. Let _then_ be the result of calling Get(_x_, `"then"`).
 1. If _then_ is an abrupt completion,
     1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _then_.[[value]] as _argumentsList_.
@@ -116,7 +94,6 @@ The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and
     1. Return.
 1. Let _then_ be _then_.[[value]].
 1. If IsCallable(_then_) is **false**, return `"not a thenable"`.
-1. Call ThenableCoercionsSet(_realm_, _x_, _deferred_.[[Promise]]).
 1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a List containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
 1. If _thenCallResult_ is an abrupt completion,
     1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _thenCallResult_.[[value]] as _argumentsList_.
@@ -173,7 +150,6 @@ When a promise resolution handler function _F_ is called with argument _x_, the 
 1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
 1. Let _fulfillmentHandler_ be the value of _F_'s [[FulfillmentHandler]] internal slot.
 1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
-1. Let _realm_ be the value of _F_'s [[Realm]] internal slot.
 1. If SameValue(_x_, _promise_) is **true**,
     1. Let _selfResolutionError_ be a newly-created **TypeError** object.
     1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_.
@@ -181,12 +157,9 @@ When a promise resolution handler function _F_ is called with argument _x_, the 
 1. If IsPromise(_x_) is **true**,
     1. Let _xConstructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
     1. If SameValue(_xConstructor_, _C_) is **true**, return the result of calling Invoke(_x_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
-1. If Type(_x_) is Object,
-    1. Let _coercedAlready_ be the result of calling ThenableCoercionsGet(_realm_, _x_).
-    1. If _coercedAlready_ is not **undefined**, return the result of calling Invoke(_coercedAlready_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
-1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_x_, _deferred_, _realm_).
+1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_x_, _deferred_).
 1. ReturnIfAbrupt(_updateResult_).
 1. If _updateResult_ is not `"not a thenable"`, return the result of calling Invoke(_deferred_.[[Promise]], `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
 1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.

@@ -52,7 +52,7 @@ describe("Self-resolution errors", function () {
     });
 });
 
-describe("Memoization of thenables", function () {
+describe.skip("Memoization of thenables", function () {
     specify("retrieving a value twice, in parallel, should only call `then` once.", function (done) {
         var deferred = adapter.deferred();
         var thenable = fulfilledThenable(sentinel);

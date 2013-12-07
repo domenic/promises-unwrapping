@@ -1,7 +1,7 @@
 {
   "name": "promises-unwrapping",
   "version": "0.0.0",
-  "description": "Some proto-spec work on exact promise semantics for the DOM and ES.",
+  "description": "A to-the-letter exact implementation of the ES6 promises spec, with some tests.",
   "main": "testable-implementation.js",
   "scripts": {
     "test": "mocha --harmony run-tests.js --bail"
@@ -13,15 +13,15 @@
   "keywords": [
     "promises",
     "promises-aplus",
-    "ecmascript",
-    "dom"
+    "ecmascript"
   ],
   "author": "Domenic Denicola <domenic@domenicdenicola.com> (http://domenic.me/)",
   "license": "WTFPL",
-  "bugs": {
-    "url": "https://github.com/domenic/promises-unwrapping/issues"
-  },
+  "bugs": "https://github.com/domenic/promises-unwrapping/issues",
   "dependencies": {
+    "especially": ">= 1.1.1 < 2"
+  },
+  "devDependencies": {
     "promises-aplus-tests": "2.x",
     "mocha": "~1.13.0"
   }

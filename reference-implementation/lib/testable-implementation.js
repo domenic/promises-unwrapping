@@ -1,9 +1,22 @@
 "use strict";
-let assert = require("assert");
 
-// NOTE: This is not meant to be used by real code; it's used as a sanity check for the spec. If you were writing a
-// polyfill there are much simpler and more performant ways. This implementation's focus is on 100% correctness in all
-// subtle details.
+var assert = require("especially/meta").assert;
+var get_slot = require("especially/meta").get_slot;
+var set_slot = require("especially/meta").set_slot;
+var has_slot = require("especially/meta").has_slot;
+var make_slots = require("especially/meta").make_slots;
+var define_built_in_data_property = require("especially/meta").define_built_in_data_property;
+
+var Type = require("especially/abstract-operations").Type;
+var IsCallable = require("especially/abstract-operations").IsCallable;
+var IsConstructor = require("especially/abstract-operations").IsConstructor;
+var Get = require("especially/abstract-operations").Get;
+var SameValue = require("especially/abstract-operations").SameValue;
+var ArrayCreate = require("especially/abstract-operations").ArrayCreate;
+var OrdinaryConstruct = require("especially/abstract-operations").OrdinaryConstruct;
+var atAtCreate = require("especially/well-known-symbols")["@@create"];
+
+module.exports = Promise;
 
 // ## Abstract Operations for Promise Objects
 
@@ -18,7 +31,8 @@ function GetDeferred(C) {
 
     set_slot(resolver, "[[Deferred]]", deferred);
 
-    let promise = ES6New(C, resolver);
+    // Assume C has an ordinary [[Construct]]
+    let promise = OrdinaryConstruct(C, [resolver]);
 
     if (IsCallable(deferred["[[Resolve]]"]) === false) {
         throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable resolve " +
@@ -36,7 +50,7 @@ function GetDeferred(C) {
 }
 
 function IsPromise(x) {
-    if (!TypeIsObject(x)) {
+    if (Type(x) !== "Object") {
         return false;
     }
 
@@ -86,7 +100,7 @@ function TriggerPromiseReactions(reactions, argument) {
 }
 
 function UpdateDeferredFromPotentialThenable(x, deferred) {
-    if (!TypeIsObject(x)) {
+    if (Type(x) !== "Object") {
         return "not a thenable";
     }
 
@@ -253,12 +267,10 @@ function Microtask_ExecutePromiseReaction(reaction, argument) {
 
 // ### Promise
 
-let PercentPromisePercent = Promise;
-
 function Promise(resolver) {
     let promise = this;
 
-    if (!TypeIsObject(promise)) {
+    if (Type(promise) !== "Object") {
         throw new TypeError("Promise constructor called on non-object");
     }
 
@@ -295,7 +307,7 @@ function Promise(resolver) {
 
 // ## Properties of the Promise constructor
 
-Object.defineProperty(Promise, "@@create", {
+Object.defineProperty(Promise, atAtCreate, {
     value: function () {
         let F = this;
 
@@ -314,7 +326,7 @@ Object.defineProperty(Promise, "@@create", {
     configurable: true
 });
 
-define_method(Promise, "all", function (iterable) {
+define_built_in_data_property(Promise, "all", function (iterable) {
     let C = this;
     let deferred = GetDeferred(C);
 
@@ -344,21 +356,21 @@ define_method(Promise, "all", function (iterable) {
     return deferred["[[Promise]]"];
 });
 
-define_method(Promise, "resolve", function (x) {
+define_built_in_data_property(Promise, "resolve", function (x) {
     let C = this;
     let deferred = GetDeferred(C);
     deferred["[[Resolve]]"].call(undefined, x);
     return deferred["[[Promise]]"];
 });
 
-define_method(Promise, "reject", function (r) {
+define_built_in_data_property(Promise, "reject", function (r) {
     let C = this;
     let deferred = GetDeferred(C);
     deferred["[[Reject]]"].call(undefined, r);
     return deferred["[[Promise]]"];
 });
 
-define_method(Promise, "cast", function (x) {
+define_built_in_data_property(Promise, "cast", function (x) {
     let C = this;
     if (IsPromise(x) === true) {
         let constructor = get_slot(x, "[[PromiseConstructor]]");
@@ -371,7 +383,7 @@ define_method(Promise, "cast", function (x) {
     return deferred["[[Promise]]"];
 });
 
-define_method(Promise, "race", function (iterable) {
+define_built_in_data_property(Promise, "race", function (iterable) {
     let C = this;
     let deferred = GetDeferred(C);
 
@@ -383,7 +395,7 @@ define_method(Promise, "race", function (iterable) {
     return deferred["[[Promise]]"];
 });
 
-define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
+define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, onRejected) {
     let promise = this;
     let C = Get(promise, "constructor");
     let deferred = GetDeferred(C);
@@ -423,48 +435,16 @@ define_method(Promise.prototype, "then", function (onFulfilled, onRejected) {
     return deferred["[[Promise]]"];
 });
 
-define_method(Promise.prototype, "catch", function (onRejected) {
+define_built_in_data_property(Promise.prototype, "catch", function (onRejected) {
     return this.then(undefined, onRejected);
 });
 
-
-//////
-// ES/environment functions
-
-function TypeIsObject(x) {
-    return (typeof x === "object" && x !== null) || typeof x === "function";
-}
-
-function IsCallable(x) {
-    return typeof x === "function";
-}
-
-function IsConstructor(x) {
-    // The actual steps include testing whether `x` has a `[[Construct]]` internal method.
-    // This is NOT possible to determine in pure JS, so this is just an approximation.
-    return typeof x === "function";
-}
-
-function Get(obj, prop) {
-    return obj[prop];
-}
-
-function SameValue(x, y) {
-    return Object.is(x, y);
-}
-
-function ArrayCreate(n) {
-    return new Array(n);
-}
+// ## Deltas to Other Areas of hte Spec
 
 function QueueMicrotask(microtask, argumentsList) {
     process.nextTick(function () {
         microtask.apply(undefined, argumentsList);
     });
-}
-
-function ES6New(Constructor) {
-    return Constructor.apply(Constructor["@@create"](), Array.prototype.slice.call(arguments, 1));
 }
 
 function RejectIfAbrupt(argument, deferred) {
@@ -473,79 +453,3 @@ function RejectIfAbrupt(argument, deferred) {
     deferred["[[Reject]]"].call(undefined, argument);
     return deferred["[[Promise]]"];
 }
-
-//////
-// Internal helpers (for clarity)
-
-function define_method(object, methodName, method) {
-    Object.defineProperty(object, methodName, {
-        value: method,
-        configurable: true,
-        writable: true
-    });
-}
-
-let internalDataProperties = new WeakMap();
-
-// Using "slot" since it is shorter and since per recent es-discuss emails Allen will probably rename internal data
-// property to slot, or similar.
-function get_slot(obj, name) {
-    assert(internalDataProperties.has(obj));
-    assert(name in internalDataProperties.get(obj));
-
-    return internalDataProperties.get(obj)[name];
-}
-
-function set_slot(obj, name, value) {
-    assert(internalDataProperties.has(obj));
-    assert(name in internalDataProperties.get(obj));
-
-    internalDataProperties.get(obj)[name] = value;
-}
-
-function has_slot(obj, name) {
-    return internalDataProperties.has(obj) && name in internalDataProperties.get(obj);
-}
-
-function make_slots(obj, names) {
-    assert(!internalDataProperties.has(obj));
-
-    let slots = Object.create(null);
-    names.forEach(function (name) {
-        slots[name] = undefined;
-    });
-
-    internalDataProperties.set(obj, slots);
-}
-
-//////
-// Promises/A+ specification test adapter
-
-// A `done` function is useful for tests, to ensure no assertion errors are ignored.
-exports.done = function (promise, onFulfilled, onRejected) {
-    promise.then(onFulfilled, onRejected).catch(function (reason) {
-        process.nextTick(function () {
-            throw reason;
-        });
-    });
-};
-
-exports.deferred = function () {
-    let resolvePromise, rejectPromise;
-    let promise = ES6New(Promise, function (resolve, reject) {
-        resolvePromise = resolve;
-        rejectPromise = reject;
-    });
-
-    return {
-        promise: promise,
-        resolve: resolvePromise,
-        reject: rejectPromise
-    };
-};
-
-exports.resolved = Promise.resolve.bind(Promise);
-
-exports.rejected = Promise.reject.bind(Promise);
-
-exports.Promise = Promise;

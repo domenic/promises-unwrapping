@@ -1,5 +1,7 @@
 # States and Fates
 
+This document helps clarify the different adjectives surrounding promises, by dividing them up into two categories: *states* and *fates*.
+
 ## Overview and Operational Definitions
 
 ### States
@@ -42,5 +44,4 @@ Note that these relations are recursive, e.g. a promise that has been resolved t
 
 ### Undeterminability of State
 
-You cannot derive a promise's state directly from its internal slots. For example, a promise may be pending even if its [[PromiseStatus]] is `"has-resolution"`, if its [[Result]] is another pending promise. Or, a promise may be rejected if its [[Result]] is set to a thenable that will call any passed rejection handler. In fact, due to the impact of thenables, a promise's state cannot be determined until it has been measured at least once, by calling `promise.then(...)`, since it is only when the promise's `then` method is called that any unwrapping of its resolution takes place.
-
+You cannot derive a promise's state directly from its internal slots. For example, a promise may be pending even if its [[PromiseStatus]] is `"has-resolution"`, if its [[Result]] is another pending promise. Or, a promise may be rejected if its [[Result]] is set to a thenable that will call any passed rejection handler. In fact, due to the way promises can be resolved with other promises or with thenables, a promise's state cannot be determined until it has been measured at least once, by calling `promise.then(...)`, since it is only when the promise's `then` method is called that any unwrapping of its resolution takes place.

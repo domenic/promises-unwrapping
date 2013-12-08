@@ -14,6 +14,10 @@ var Get = require("especially/abstract-operations").Get;
 var SameValue = require("especially/abstract-operations").SameValue;
 var ArrayCreate = require("especially/abstract-operations").ArrayCreate;
 var OrdinaryConstruct = require("especially/abstract-operations").OrdinaryConstruct;
+var GetIterator = require("especially/abstract-operations").GetIterator;
+var IteratorStep = require("especially/abstract-operations").IteratorStep;
+var IteratorValue = require("especially/abstract-operations").IteratorValue;
+var Invoke = require("especially/abstract-operations").Invoke;
 var atAtCreate = require("especially/well-known-symbols")["@@create"];
 
 module.exports = Promise;
@@ -192,14 +196,14 @@ function make_PromiseResolutionHandlerFunction() {
         if (IsPromise(x)) {
             let xConstructor = get_slot(x, "[[PromiseConstructor]]");
             if (SameValue(xConstructor, C) === true) {
-                return x.then(fulfillmentHandler, rejectionHandler);
+                return Invoke(x, "then", [fulfillmentHandler, rejectionHandler]);
             }
         }
 
         let deferred = GetDeferred(C);
         let updateResult = UpdateDeferredFromPotentialThenable(x, deferred);
         if (updateResult !== "not a thenable") {
-            return deferred["[[Promise]]"].then(fulfillmentHandler, rejectionHandler);
+            return Invoke(deferred["[[Promise]]"], "then", [fulfillmentHandler, rejectionHandler]);
         }
         return fulfillmentHandler.call(undefined, x);
     };
@@ -330,12 +334,45 @@ define_built_in_data_property(Promise, "all", function (iterable) {
     let C = this;
     let deferred = GetDeferred(C);
 
+    let iterator;
+    try {
+        iterator = GetIterator(iterable);
+    } catch (iteratorE) {
+        return RejectIfAbrupt(iteratorE, deferred);
+    }
+
     let values = ArrayCreate(0);
     let countdownHolder = { "[[Countdown]]": 0 };
     let index = 0;
 
-    for (let nextValue of iterable) {
-        let nextPromise = C.cast(nextValue);
+    while(true) {
+        let next;
+        try {
+            next = IteratorStep(iterator);
+        } catch (nextE) {
+            return RejectIfAbrupt(nextE, deferred);
+        }
+
+        if (next === false) {
+            if (index === 0) {
+                deferred["[[Resolve]]"].call(undefined, values);
+            }
+            return deferred["[[Promise]]"];
+        }
+
+        let nextValue;
+        try {
+            nextValue = IteratorValue(next);
+        } catch (nextValueE) {
+            return RejectIfAbrupt(nextValueE, deferred);
+        }
+
+        let nextPromise;
+        try {
+            nextPromise = Invoke(C, "cast", [nextValue]);
+        } catch (nextPromiseE) {
+            return RejectIfAbrupt(nextPromiseE, deferred);
+        }
 
         let countdownFunction = make_PromiseDotAllCountdownFunction();
         set_slot(countdownFunction, "[[Index]]", index);
@@ -343,17 +380,15 @@ define_built_in_data_property(Promise, "all", function (iterable) {
         set_slot(countdownFunction, "[[Deferred]]", deferred);
         set_slot(countdownFunction, "[[CountdownHolder]]", countdownHolder);
 
-        nextPromise.then(countdownFunction, deferred["[[Reject]]"]);
+        try {
+            Invoke(nextPromise, "then", [countdownFunction, deferred["[[Reject]]"]]);
+        } catch (resultE) {
+            return RejectIfAbrupt(resultE, deferred);
+        }
 
         index = index + 1;
         countdownHolder["[[Countdown]]"] = countdownHolder["[[Countdown]]"] + 1;
     }
-
-    if (index === 0) {
-        deferred["[[Resolve]]"].call(undefined, values);
-    }
-
-    return deferred["[[Promise]]"];
 });
 
 define_built_in_data_property(Promise, "resolve", function (x) {
@@ -387,12 +422,45 @@ define_built_in_data_property(Promise, "race", function (iterable) {
     let C = this;
     let deferred = GetDeferred(C);
 
-    for (let nextValue of iterable) {
-        let nextPromise = C.cast(nextValue);
-        nextPromise.then(deferred["[[Resolve]]"], deferred["[[Reject]]"]);
+    let iterator;
+    try {
+        iterator = GetIterator(iterable);
+    } catch (iteratorE) {
+        return RejectIfAbrupt(iteratorE, deferred);
     }
 
-    return deferred["[[Promise]]"];
+    while (true) {
+        let next;
+        try {
+            next = IteratorStep(iterator);
+        } catch (nextE) {
+            return RejectIfAbrupt(nextE, deferred);
+        }
+
+        if (next === false) {
+            return deferred["[[Promise]]"];
+        }
+
+        let nextValue;
+        try {
+            nextValue = IteratorValue(next);
+        } catch (nextValueE) {
+            return RejectIfAbrupt(nextValueE, deferred);
+        }
+
+        let nextPromise;
+        try {
+            nextPromise = Invoke(C, "cast", [nextValue]);
+        } catch (nextPromiseE) {
+            return RejectIfAbrupt(nextPromiseE, deferred);
+        }
+
+        try {
+            Invoke(nextPromise, "then", [deferred["[[Resolve]]"], deferred["[[Reject]]"]]);
+        } catch (resultE) {
+            RejectIfAbrupt(resultE, deferred);
+        }
+    }
 });
 
 define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, onRejected) {
@@ -436,7 +504,7 @@ define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, 
 });
 
 define_built_in_data_property(Promise.prototype, "catch", function (onRejected) {
-    return this.then(undefined, onRejected);
+    return Invoke(this, "then", [undefined, onRejected]);
 });
 
 // ## Deltas to Other Areas of hte Spec

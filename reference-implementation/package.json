@@ -19,7 +19,7 @@
   "license": "WTFPL",
   "bugs": "https://github.com/domenic/promises-unwrapping/issues",
   "dependencies": {
-    "especially": ">= 1.1.1 < 2"
+    "especially": ">= 1.2.0 < 2"
   },
   "devDependencies": {
     "promises-aplus-tests": "2.x",

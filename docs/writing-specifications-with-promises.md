@@ -46,7 +46,7 @@ You should *never* do a type-detection on the incoming value, or overload betwee
 
 Promise rejections should always be instances of the ECMAScript `Error` type, just like synchronously-thrown exceptions should always be instances of `Error` as well.
 
-Right now the web platform does not actually have any `Error` instances; neither `DOMException` nor `DOMError` extends `Error`. However, the plan is to [fix `DOMException`](https://www.w3.org/Bugs/Public/show_bug.cgi?id=24000), so `DOMException` is the correct thing to reject with.
+In particular, for DOM or other web platform specs, this means you should never use `DOMError`, but instead use `DOMException`, which [per WebIDL](http://heycam.github.io/webidl/#es-exceptions) extends `Error`.
 
 ### Rejections Should Be Used for Exceptional Situations
 

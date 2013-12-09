@@ -203,14 +203,13 @@ The microtask ExecutePromiseReaction applies the appropriate handler to the inco
 
 1. Let _deferred_ be _reaction_.[[Deferred]].
 1. Let _handler_ be _reaction_.[[Handler]].
-1. Let _realm_ be the value of _handler_'s [[Realm]] internal slot.
 1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and a List containing _argument_ as _argumentsList_.
 1. If _handlerResult_ is an abrupt completion, return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_.[[value]] as _argumentsList_.
 1. Let _handlerResult_ be _handlerResult_.[[value]].
 1. If SameValue(_handlerResult_, _deferred_.[[Promise]]) is **true**,
     1. Let _selfResolutionError_ be a newly-created **TypeError** object.
     1. Return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_
-1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_handlerResult_, _deferred_, _realm_).
+1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_handlerResult_, _deferred_).
 1. ReturnIfAbrupt(_updateResult_).
 1. If _updateResult_ is `"not a thenable"`,
     1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_ as _argumentsList_.

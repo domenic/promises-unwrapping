@@ -2,6 +2,7 @@
 
 var assert = require("assert");
 var OrdinaryConstruct = require("especially/abstract-operations").OrdinaryConstruct;
+var atAtIterator = require("especially/well-known-symbols")["@@iterator"];
 var Promise = require("../lib/testable-implementation");
 
 describe("Easy-to-debug sanity check", function () {
@@ -30,5 +31,23 @@ describe("Self-resolution errors", function () {
                 done();
             }
         );
+    });
+});
+
+specify("Stealing a resolver and using it to trigger possible reentrancy bug (#83)", function () {
+    var stolenResolver;
+    function StealingPromiseConstructor(resolver) {
+        stolenResolver = resolver;
+        resolver(function () { }, function () { });
+    }
+
+    var iterable = {};
+    iterable[atAtIterator] = function () {
+        stolenResolver(null, null);
+        throw 0;
+    };
+
+    assert.doesNotThrow(function () {
+        Promise.all.call(StealingPromiseConstructor, iterable);
     });
 });

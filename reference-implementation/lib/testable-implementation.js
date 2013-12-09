@@ -29,28 +29,26 @@ function GetDeferred(C) {
         throw new TypeError("Tried to construct a promise from a non-constructor.");
     }
 
-    let deferred = { "[[Promise]]": undefined, "[[Resolve]]": undefined, "[[Reject]]": undefined };
-
     let resolver = make_DeferredConstructionFunction();
-
-    set_slot(resolver, "[[Deferred]]", deferred);
 
     // Assume C has an ordinary [[Construct]]
     let promise = OrdinaryConstruct(C, [resolver]);
 
-    if (IsCallable(deferred["[[Resolve]]"]) === false) {
+    let resolve = get_slot(resolver, "[[Resolve]]");
+
+    if (IsCallable(resolve) === false) {
         throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable resolve " +
                             "argument.");
     }
 
-    if (IsCallable(deferred["[[Reject]]"]) === false) {
+    let reject = get_slot(resolver, "[[Reject]]");
+
+    if (IsCallable(reject) === false) {
         throw new TypeError("Tried to construct a promise from a constructor which does not pass a callable reject " +
                             "argument.");
     }
 
-    deferred["[[Promise]]"] = promise;
-
-    return deferred;
+    return { "[[Promise]]": promise, "[[Resolve]]": resolve, "[[Reject]]": reject };
 }
 
 function IsPromise(x) {
@@ -131,13 +129,11 @@ function UpdateDeferredFromPotentialThenable(x, deferred) {
 
 function make_DeferredConstructionFunction() {
     let F = function (resolve, reject) {
-        let deferred = get_slot(F, "[[Deferred]]");
-
-        deferred["[[Resolve]]"] = resolve;
-        deferred["[[Reject]]"] = reject;
+        set_slot(F, "[[Resolve]]", resolve);
+        set_slot(F, "[[Reject]]", reject);
     };
 
-    make_slots(F, ["[[Deferred]]"]);
+    make_slots(F, ["[[Resolve]]", "[[Reject]]"]);
 
     return F;
 }

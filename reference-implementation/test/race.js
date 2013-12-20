@@ -3,7 +3,7 @@
 var assert = require("assert");
 var Promise = require("../lib/testable-implementation");
 var iterableFromArray = require("./helpers").iterableFromArray;
-var delayPromise = require("./helpers").iterableFromArray;
+var delayPromise = require("./helpers").delayPromise;
 
 describe("Promise.race", function () {
     it("should fulfill if all promises are settled and the ordinally-first is fulfilled", function (done) {

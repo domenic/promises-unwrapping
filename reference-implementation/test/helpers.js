@@ -2,6 +2,7 @@
 
 var atAtIterator = require("especially/well-known-symbols")["@@iterator"];
 var OrdinaryConstruct = require("especially/abstract-operations").OrdinaryConstruct;
+var Promise = require("../lib/testable-implementation");
 
 exports.iterableFromArray = function (array) {
     var i = 0;

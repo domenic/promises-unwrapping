@@ -1,24 +1,25 @@
 "use strict";
 
-var assert = require("especially/meta").assert;
-var get_slot = require("especially/meta").get_slot;
-var set_slot = require("especially/meta").set_slot;
-var has_slot = require("especially/meta").has_slot;
-var make_slots = require("especially/meta").make_slots;
-var define_built_in_data_property = require("especially/meta").define_built_in_data_property;
+let assert = require("especially/meta").assert;
+let get_slot = require("especially/meta").get_slot;
+let set_slot = require("especially/meta").set_slot;
+let has_slot = require("especially/meta").has_slot;
+let make_slots = require("especially/meta").make_slots;
+let define_built_in_data_property = require("especially/meta").define_built_in_data_property;
 
-var Type = require("especially/abstract-operations").Type;
-var IsCallable = require("especially/abstract-operations").IsCallable;
-var IsConstructor = require("especially/abstract-operations").IsConstructor;
-var Get = require("especially/abstract-operations").Get;
-var SameValue = require("especially/abstract-operations").SameValue;
-var ArrayCreate = require("especially/abstract-operations").ArrayCreate;
-var OrdinaryConstruct = require("especially/abstract-operations").OrdinaryConstruct;
-var GetIterator = require("especially/abstract-operations").GetIterator;
-var IteratorStep = require("especially/abstract-operations").IteratorStep;
-var IteratorValue = require("especially/abstract-operations").IteratorValue;
-var Invoke = require("especially/abstract-operations").Invoke;
-var atAtCreate = require("especially/well-known-symbols")["@@create"];
+let Type = require("especially/abstract-operations").Type;
+let IsCallable = require("especially/abstract-operations").IsCallable;
+let IsConstructor = require("especially/abstract-operations").IsConstructor;
+let Get = require("especially/abstract-operations").Get;
+let SameValue = require("especially/abstract-operations").SameValue;
+let ArrayCreate = require("especially/abstract-operations").ArrayCreate;
+let OrdinaryCreateFromConstructor = require("especially/abstract-operations").OrdinaryCreateFromConstructor;
+let OrdinaryConstruct = require("especially/abstract-operations").OrdinaryConstruct;
+let GetIterator = require("especially/abstract-operations").GetIterator;
+let IteratorStep = require("especially/abstract-operations").IteratorStep;
+let IteratorValue = require("especially/abstract-operations").IteratorValue;
+let Invoke = require("especially/abstract-operations").Invoke;
+let atAtCreate = require("especially/well-known-symbols")["@@create"];
 
 module.exports = Promise;
 
@@ -297,17 +298,15 @@ function Promise(resolver) {
     return promise;
 }
 
-// ## Properties of the Promise constructor
+// ## Properties of the Promise Constructor
 
 Object.defineProperty(Promise, atAtCreate, {
     value: function () {
         let F = this;
 
-        // This is basically OrdinaryCreateFromConstructor(...).
-        let obj = Object.create(Promise.prototype);
-
-        make_slots(obj, ["[[PromiseStatus]]", "[[PromiseConstructor]]", "[[Result]]",  "[[ResolveReactions]]",
-                         "[[RejectReactions]]"]);
+        let obj = OrdinaryCreateFromConstructor(F, "%PromisePrototype%",
+                                                ["[[PromiseStatus]]", "[[PromiseConstructor]]", "[[Result]]",
+                                                "[[ResolveReactions]]", "[[RejectReactions]]"]);
 
         set_slot(obj, "[[PromiseConstructor]]", F);
 
@@ -451,6 +450,10 @@ define_built_in_data_property(Promise, "race", function (iterable) {
     }
 });
 
+// ## Properties of the Promise Prototype Object
+
+let PercentPromisePercent = Promise.prototype;
+
 define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, onRejected) {
     let promise = this;
     let C = Get(promise, "constructor");
@@ -495,13 +498,16 @@ define_built_in_data_property(Promise.prototype, "catch", function (onRejected) 
     return Invoke(this, "then", [undefined, onRejected]);
 });
 
-// ## Deltas to Other Areas of hte Spec
+// ## Deltas to Other Areas of the Spec
 
 function QueueMicrotask(microtask, argumentsList) {
     process.nextTick(function () {
         microtask.apply(undefined, argumentsList);
     });
 }
+
+require("especially/intrinsics")["%Promise%"] = Promise;
+require("especially/intrinsics")["%PromisePrototype%"] = Promise.prototype;
 
 function RejectIfAbrupt(argument, deferred) {
     // Usage: pass it exceptions; it only handles that case.

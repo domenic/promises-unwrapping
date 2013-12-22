@@ -250,7 +250,7 @@ If Promise is implemented as an ordinary function object, its [[Construct]] inte
 ### Promise \[ @@create \] ( )
 
 1. Let _F_ be the **this** value.
-1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_constructor_, "%PromisePrototype%", ([[PromiseStatus]], [[PromiseConstructor]], [[Result]], [[ResolveReactions]], [[RejectReactions]])).
+1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_F_, "%PromisePrototype%", ([[PromiseStatus]], [[PromiseConstructor]], [[Result]], [[ResolveReactions]], [[RejectReactions]])).
 1. Set _obj_'s [[PromiseConstructor]] internal slot to _F_.
 1. Return _obj_.
 

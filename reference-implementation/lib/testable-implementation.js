@@ -188,14 +188,6 @@ function make_PromiseResolutionHandlerFunction() {
         }
 
         let C = get_slot(promise, "[[PromiseConstructor]]");
-
-        if (IsPromise(x)) {
-            let xConstructor = get_slot(x, "[[PromiseConstructor]]");
-            if (SameValue(xConstructor, C) === true) {
-                return Invoke(x, "then", [fulfillmentHandler, rejectionHandler]);
-            }
-        }
-
         let deferred = GetDeferred(C);
         let updateResult = UpdateDeferredFromPotentialThenable(x, deferred);
         if (updateResult !== "not a thenable") {

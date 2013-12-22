@@ -153,9 +153,6 @@ When a promise resolution handler function _F_ is called with argument _x_, the 
     1. Let _selfResolutionError_ be a newly-created **TypeError** object.
     1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_.
 1. Let _C_ be the value of _promise_'s [[PromiseConstructor]] internal slot.
-1. If IsPromise(_x_) is **true**,
-    1. Let _xConstructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
-    1. If SameValue(_xConstructor_, _C_) is **true**, return the result of calling Invoke(_x_, `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
 1. Let _deferred_ be the result of calling GetDeferred(_C_).
 1. ReturnIfAbrupt(_deferred_).
 1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_x_, _deferred_).

@@ -1,43 +1,182 @@
 # Promise Objects
 
-Promise objects represent the eventual result of an asynchronous operation. The primary way of interacting with a promise is through its `then` method, which registers callbacks to receive either a promise’s eventual value or the reason why the promise cannot be fulfilled.
+A Promise is an object that that is used as a place holder for the eventual results of a deferred (and possibly asynchromous) computation.
 
-## Record Types for Promise Objects
+Any Promise object is in one of three mutually exclusive states: _fulfilled_, _rejected_, and _pending_:
 
-### The Deferred Specification Type
+- A promise `p` is fulfilled if `p.then(f, r)` will immediately enqueue a Task to call the function `f`.
+- A promise `p` is rejected if `p.then(f, r)` will immediately enqueue a Task to call the function `r`.
+- A promise is pending if it is neither fulfilled nor rejected.
 
-The Deferred type is used to encapsulate newly-created promise objects along with functions that resolve or reject them. Deferred objects are derived by the GetDeferred abstract operation from either the Promise constructor itself or from a constructor that subclasses the Promise constructor. This mechanism allows promise subclasses to install custom resolve and reject behavior by creating constructors that pass appropriate functions to their resolver argument.
+A promise said to be _settled_ if it is not pending, i.e. if it is either fulfilled or rejected.
 
-Deferreds are Records composed of three named fields:
+A promise is _resolved_ if it is settled or if it has been "locked in" match the state of another promise. trying to Attempting to resolve or reject a resolved promise has no effect. A promise is _unresolved_ if it is not resolved. A unresolved promise is always in the pending state. A resolved promise may be pending, fullfiled, pending.
 
-- [[Promise]]: the newly-created promise object
-- [[Resolve]]: a function that is presumed to resolve the given promise object
-- [[Reject]]: a function that is presumed to reject the given promise object
+## Promise Abstract Operations
 
-### The PromiseReaction Specification Type
+### PromiseCapability Records
 
-The PromiseReaction type is used to store information about how a promise should react when it becomes resolved or rejected with a given value. PromiseReaction objects are created by the `then` method of the Promise prototype, and are used by the ExecutePromiseReaction microtask.
+A PromiseCapability is a Record value used to encapsulate a promise objects along with the functions that capable of resolving or rejecting that promise object. PromiseCapability records are produced by the NewPromiseCapability abstract operation.
 
-PromiseReactions are Records composed of two named fields:
+PromiseCapability Records have the fields listed in this table.
 
-- [[Deferred]]: a Deferred record representing a derived promise and the ability to resolve or reject it.
-- [[Handler]]: a function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise.
+<table>
+    <caption>PromiseCapability Record Fields</caption>
+    <thead>
+        <tr>
+            <th>Field Name</th>
+            <th>Value</th>
+            <th>Meaning</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>[[Promise]]</td>
+            <td>An object</td>
+            <td>An object that is usable as a promise.</td>
+        </tr>
+        <tr>
+            <td>[[Resolve]]</td>
+            <td>A function object</td>
+            <td>The function that is used to resolve the given promise object.</td>
+        </tr>
+        <tr>
+            <td>[[Reject]]</td>
+            <td>A function object</td>
+            <td>The function that is used to reject the given promise object.</td>
+        </tr>
+    </tbody>
+</table>
 
-## Abstract Operations for Promise Objects
+####  IfAbruptRejectPromise (value, capability)
 
-### GetDeferred ( C )
+IfAbruptRejectPromise is a short hand for a sequence of algorithm steps that use a PromiseCapability record. An algorithm step of the form:
 
-The abstract operation GetDeferred takes a potential constructor function, and attempts to use that constructor function in the fashion of the normal promise constructor to extract resolve and reject functions, returning the constructed promise along with those two functions controlling its state. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed resolver argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
+1. IfAbruptRejectPromise(_value_, _capability_).
+
+means the same things as:
+
+1. If _value_ is an abrupt completion,
+    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _capability_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _value_.[[value]] as _argumentsList_.
+    1. ReturnIfAbrupt(_rejectResult_).
+    1. Return _capability_.[[Promise]].
+1. Else if _value_ is a Completion Record, then let _value_ be _value_.[[value]].
+
+### PromiseReaction Records
+
+The PromiseReaction is a Record value used to store information about how a promise should react when it becomes resolved or rejected with a given value. PromiseReaction records are created by the `then` method of the Promise prototype, and are used by a PromiseReactionTask.
+
+PromiseReaction records have the fields listed in this table.
+
+<table>
+    <caption>PromiseReaction Record Fields</caption>
+    <thead>
+        <tr>
+            <th>Field Name</th>
+            <th>Value</th>
+            <th>Meaning</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td>[[Capabilities]]</td>
+            <td>A PromiseCapability record</td>
+            <td>The capabilities of the promise for which this record provides a reaction handler.</td>
+        </tr>
+        <tr>
+            <td>[[Handler]]</td>
+            <td>A function object</td>
+            <td>The function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise.</td>
+        </tr>
+    </tbody>
+</table>
+
+
+### CreateRejectFunction ( promise )
+
+When CreateRejectFunction is performed with argument _promise_, the following steps are taken:
+
+1. Let _reject_ be a new built-in function object as defined in Promise Reject Functions.
+1. Set the [[Promise]] internal slot of _reject_ to _promise_.
+1. Return _reject_.
+
+#### Promise Reject Functions
+
+A promise reject function is an anonymous built-in function that has a [[Promise]] internal slot.
+
+When a promise reject function _F_ is called with argument _reason_, the following steps are taken:
+
+1. Assert: _F_ has a [[Promise]] internal slot whose value is an Object.
+1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
+1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, then return **undefined**.
+1. Let _reactions_ be the value of _promise_'s [[RejectReactions]] internal slot.
+1. Set the value of _promise_'s [[PromiseResult]] internal slot to _reason_.
+1. Set the value of _promise_'s [[PromiseResolveReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseRejectReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-rejection"`.
+1. Return TriggerPromiseReactions(_reactions_, _reason_).
+
+### CreateResolveFunction ( promise )
+
+When CreateResolveFunction is performed with argument _promise_, the following steps are taken:
+
+1. Let _resolve_ be a new built-in function object as defined in Promise Resolve Functions.
+1. Set the [[Promise]] internal slot of _resolve_ to _promise_.
+1. Return _resolve_.
+
+#### Promise Resolve Functions
+
+A promise resolve function is an anonymous built-in function that has a [[Promise]] internal slot.
+
+When a promise resolve function _F_ is called with argument _resolution_, the following steps are taken:
+
+1. Assert: _F_ has a [[Promise]] internal slot whose value is an Object.
+1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
+1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, then return **undefined**.
+1. Let _reactions_ be the value of _promise_'s [[PromiseResolveReactions]] internal slot.
+1. Set the value of _promise_'s [[PromiseResult]] internal slot to _resolution_.
+1. Set the value of _promise_'s [[PromiseResolveReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseRejectReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-resolution"`.
+1. Return TriggerPromiseReactions(_reactions_, _resolution_).
+
+###  NewPromiseCapability ( C )
+
+The abstract operation NewPromiseCapability takes a constructor function, and attempts to use that constructor function in the fashion of the built-in `Promise` constructor to create a Promise object and extract its resolve and reject functions. The promise plus the resolve and reject functions are used to initialize a new PromiseCapability record which is returned as the value of this abstraction operation. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed executor argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
 
 1. If IsConstructor(_C_) is **false**, throw a **TypeError**.
-1. Let _resolver_ be a new built-in function object as defined in Deferred Construction Functions.
-1. Let _promise_ be the result of calling the [[Construct]] internal method of _C_ with an argument list containing the single item _resolver_.
+1. Assert: _C_ is a constructor function that supports the parameter conventions of the `Promise` constructor.
+1. Let _promise_ be CreateFromConstructor(_C_).
 1. ReturnIfAbrupt(_promise_).
-1. Let _resolve_ be the value of _resolver_'s [[Resolve]] internal slot.
-1. If IsCallable(_resolve_) is **false**, throw a **TypeError**.
-1. Let _reject_ be the value of _resolver_'s [[Reject]] internal slot.
-1. If IsCallable(_reject_) is **false**, throw a **TypeError**.
-1. Return the Deferred { [[Promise]]: _promise_, [[Resolve]]: _resolve_, [[Reject]]: _reject_ }.
+1. Return CreatePromiseCapabilityRecord(_promise_, _C_).
+
+NOTE: This abstract operation is supports Promise subclassing, as it is generic on any constructor that calls a passed executor function argument in the same way as the Promise constructor. It is used to generalize static methods of the Promise constructor to any subclass.
+
+#### CreatePromiseCapabilityRecord( promise, constructor ) Abstract Operation
+
+1. Let _promiseCapability_ be a new PromiseCapability { [[Promise]]: _promise_, [[Resolve]]: **undefined**, [[Reject]]: **undefined** }.
+1. Let _executor_ be a new built-in function object as defined in GetCapabilitiesExecutor Functions.
+1. Set the [[Capability]] internal slot of _executor_ to _promiseCapability_.
+1. Let _constructorResult_ be the result of calling the [[Call]] internal method of _constructor_, passing _promise_ and (_executor_) as the arguments.
+1. ReturnIfAbrupt(_constructorResult_).
+1. If IsCallable(_promiseCapability_.[[Resolve]]) is **false**, then throw a **TypeError** exception.
+1. If IsCallable(_promiseCapability_. [[Reject]]) is **false**, then throw a **TypeError** exception.
+1. If Type(_constructorResult_) is Object and SameAs(_promise_, _constructorResult_) is **false**, then throw a TypeError exception.
+1. Return _promiseCapability_.
+
+#### GetCapabilitiesExecutor Functions
+
+A GetCapabilitiesExecutor function is an anonymous built-in function that has a [[Capability]] internal slot.
+
+When a GetCapabilitiesExecutor function _F_ is called with arguments _resolve_ and _reject_ the following steps are taken:
+
+1. Assert: _F_ has a [[Capability]] internal slot whose value is a PromiseCapability Record.
+1. Let _promiseCapability_ be the value of _F_'s [[Capability]] internal slot.
+1. If _promiseCapability_.[[Resolve]] is not **undefined**, then throw a **TypeError** exception.
+1. If _promiseCapability_.[[Reject]] is not **undefined**, then throw a **TypeError** exception.
+1. Set _promiseCapability_.[[Resolve]] to _resolve_.
+1. Set _promiseCapability_.[[Reject]] to _reject_.
+1. Return **undefined**.
 
 ### IsPromise ( x )
 
@@ -48,189 +187,99 @@ The abstract operation IsPromise checks for the promise brand on an object.
 1. If the value of _x_'s [[PromiseStatus]] internal slot is **undefined**, return **false**.
 1. Return **true**.
 
-### PromiseReject ( promise, reason )
-
-The abstract operation PromiseReject rejects a promise with a reason.
-
-1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, return.
-1. Let _reactions_ be the value of _promise_'s [[RejectReactions]] internal slot.
-1. Set the value of _promise_'s [[Result]] internal slot to _reason_.
-1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[RejectReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-rejection"`.
-1. Return the result of calling TriggerPromiseReactions(_reactions_, _reason_).
-
-### PromiseResolve ( promise, resolution )
-
-The abstract operation PromiseResolve resolves a promise with a value.
-
-1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, return.
-1. Let _reactions_ be the value of _promise_'s [[ResolveReactions]] internal slot.
-1. Set the value of _promise_'s [[Result]] internal slot to _resolution_.
-1. Set the value of _promise_'s [[ResolveReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[RejectReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-resolution"`.
-1. Return the result of calling TriggerPromiseReactions(_reactions_, _resolution_).
-
 ### TriggerPromiseReactions ( reactions, argument )
 
-The abstract operation TriggerPromiseReactions takes a collection of functions to trigger in the next microtask, and calls them, passing each the given argument. Typically, these reactions will modify a previously-returned promise, possibly calling in to a user-supplied handler before doing so.
+The abstract operation TriggerPromiseReactions takes a collection of functions to trigger in the next Task, and calls them, passing each the given argument. Typically, these reactions will modify a previously-returned promise, possibly calling in to a user-supplied handler before doing so.
 
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
-    1. Call QueueMicrotask(ExecutePromiseReaction, (_reaction_, _argument_)).
-1. Return.
+    1. Perform EnqueueTask(`"PromiseTasks"`, PromiseReactionTask, (_reaction_, _argument_)).
+1. Return **undefined**.
 
-### UpdateDeferredFromPotentialThenable ( x, deferred )
+### UpdatePromiseFromPotentialThenable ( x, promiseCapability)
 
-The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and tests if it is a thenable. If so, it tries to use _x_'s `then` method to resolve _deferred_. Otherwise, it returns `"not a thenable"`.
+The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and tests if it is a thenable. If so, it tries to use _x_'s `then` method to resolve the promised accessed through _promiseCapability_. Otherwise, it returns `"not a thenable"`.
 
 1. If Type(_x_) is not Object, return `"not a thenable"`.
 1. Let _then_ be the result of calling Get(_x_, `"then"`).
 1. If _then_ is an abrupt completion,
-    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _then_.[[value]] as _argumentsList_.
+    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] with **undefined** as _thisArgument_ and (_then_.[[value]]) as _argumentsList_.
     1. ReturnIfAbrupt(_rejectResult_).
-    1. Return.
+    1. Return **null**.
 1. Let _then_ be _then_.[[value]].
 1. If IsCallable(_then_) is **false**, return `"not a thenable"`.
-1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and a List containing _deferred_.[[Resolve]] and _deferred_.[[Reject]] as _argumentsList_.
+1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and (_promiseCapability_.[[Resolve]], _promiseCapability_.[[Reject]]) as _argumentsList_.
 1. If _thenCallResult_ is an abrupt completion,
-    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _thenCallResult_.[[value]] as _argumentsList_.
+    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _capability_.[[Reject]] with **undefined** as _thisArgument_ and (_thenCallResult_.[[value]]) as _argumentsList_.
     1. ReturnIfAbrupt(_rejectResult_).
+1. Return **null**.
 
-## Built-in Functions for Promise Objects
+## Promise Tasks
 
-### Deferred Construction Functions
+### PromiseReactionTask( reaction, argument )
 
-A deferred construction function is an anonymous function that stores its arguments for later use in constructing a Deferred record.
+The task PromiseReactionTask with parameters _reaction_ and _argument_ applies the appropriate handler to the incoming value, and uses the handler's return value to resolve or reject the derived promise associated with that handler.
 
-Each deferred construction function has [[Resolve]] and [[Reject]] internal slots.
-
-When a deferred construction function _F_ is called with arguments _resolve_ and _reject_, the following steps are taken:
-
-1. Set _F_'s [[Resolve]] internal slot to _resolve_.
-1. Set _F_'s [[Reject]] internal slot to _reject_.
-1. Return.
-
-### Identity Functions
-
-An identity function simply returns its input.
-
-When an identity function is called with argument _x_, the following steps are taken:
-
-1. Return _x_.
-
-### Promise.all Countdown Functions
-
-A Promise.all countdown function is an anonymous function that handles fulfillment of any promises passed to the `all` method of the Promise constructor.
-
-Each Promise.all countdown function has [[Index]], [[Values]], [[Deferred]], and [[CountdownHolder]] internal slots.
-
-When a Promise.all countdown function _F_ is called with argument _x_, the following steps are taken:
-
-1. Let _index_ be the value of _F_'s [[Index]] internal slot.
-1. Let _values_ be the value of _F_'s [[Values]] internal slot.
-1. Let _deferred_ be the value of _F_'s [[Deferred]] internal slot.
-1. Let _countdownHolder_ be the value of _F_'s [[CountdownHolder]] internal slot.
-1. Let _result_ be the result of calling the [[DefineOwnProperty]] internal method of _values_ with arguments _index_ and Property Descriptor { [[Value]]: _x_, [[Writable]]: **true**, [[Enumerable]]: **true**, [[Configurable]]: **true** }.
-1. RejectIfAbrupt(_result_, _deferred_).
-1. Set _countdownHolder_.[[Countdown]] to _countdownHolder_.[[Countdown]] - 1.
-1. If _countdownHolder_.[[Countdown]] is 0,
-    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _values_ as _argumentsList_.
-1. Return.
-
-### Promise Resolution Handler Functions
-
-A promise resolution handler function is an anonymous function that has the ability to handle a promise being resolved, by "unwrapping" any incoming values until they are no longer promises or thenables and can be passed to the appropriate fulfillment handler.
-
-Each promise resolution handler function has [[Promise]], [[FulfillmentHandler]], and [[RejectionHandler]] internal slots.
-
-When a promise resolution handler function _F_ is called with argument _x_, the following steps are taken:
-
-1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. Let _fulfillmentHandler_ be the value of _F_'s [[FulfillmentHandler]] internal slot.
-1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
-1. If SameValue(_x_, _promise_) is **true**,
-    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
-    1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_.
-1. Let _C_ be the value of _promise_'s [[PromiseConstructor]] internal slot.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_x_, _deferred_).
-1. ReturnIfAbrupt(_updateResult_).
-1. If _updateResult_ is not `"not a thenable"`, return the result of calling Invoke(_deferred_.[[Promise]], `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
-1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
-
-### Reject Promise Functions
-
-A reject promise function is an anonymous function that has the ability to reject a promise with a given reason.
-
-Each reject promise function has a [[Promise]] internal slot.
-
-When a reject promise function _F_ is called with argument _reason_, the following steps are taken:
-
-1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. Return the result of calling PromiseReject(_promise_, _reason_).
-
-### Resolve Promise Functions
-
-A resolve promise function is an anonymous function that has the ability to resolve a promise with a given resolution.
-
-Each resolve promise function has a [[Promise]] internal slot.
-
-When a resolve promise function _F_ is called with argument _resolution_, the following steps are taken:
-
-1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. Return the result of calling PromiseResolve(_promise_, _resolution_).
-
-### Thrower Functions
-
-A thrower function simply throws its input.
-
-When a thrower function is called with argument _e_, the following steps are taken:
-
-1. Return Completion{[[type]]: throw, [[value]]: e, [[target]]:empty}.
-
-## Microtasks for Promise Objects
-
-### Microtask ExecutePromiseReaction( reaction, argument )
-
-The microtask ExecutePromiseReaction applies the appropriate handler to the incoming value, and uses the handler's return value to resolve or reject the derived promise associated with that handler.
-
-1. Let _deferred_ be _reaction_.[[Deferred]].
+1. Assert: _reaction_ is a PromiseReaction Record.
+1. Let _promiseCapability_ be _reaction_.[[Capabilities]].
 1. Let _handler_ be _reaction_.[[Handler]].
-1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and a List containing _argument_ as _argumentsList_.
-1. If _handlerResult_ is an abrupt completion, return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_.[[value]] as _argumentsList_.
+1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and (_argument_) as _argumentsList_.
+1. If _handlerResult_ is an abrupt completion, then
+    1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] passing **undefined** as _thisArgument_ and (_handlerResult_.[[value]]) as _argumentsList_.
+    1. NextTask _status_.
 1. Let _handlerResult_ be _handlerResult_.[[value]].
-1. If SameValue(_handlerResult_, _deferred_.[[Promise]]) is **true**,
+1. If SameValue(_handlerResult_, _promiseCapability_.[[Promise]]) is **true**, then
     1. Let _selfResolutionError_ be a newly-created **TypeError** object.
-    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Reject]] passing **undefined** as _thisArgument_ and a List containing _selfResolutionError_ as _argumentsList_
-1. Let _updateResult_ be the result of calling UpdateDeferredFromPotentialThenable(_handlerResult_, _deferred_).
-1. ReturnIfAbrupt(_updateResult_).
+    1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] passing **undefined** as _thisArgument_ and (_selfResolutionError_) as _argumentsList_
+    1. NextTask _status_.
+1. Let _status_ be UpdatePromiseFromPotentialThenable (_handlerResult_, _promiseCapability_).
+1. If _status_ is an abrupt completion, then NextTask _status_ .
+1. Let _updateResult_ be _status_.[[value]].
 1. If _updateResult_ is `"not a thenable"`,
-    1. Return the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] passing **undefined** as _thisArgument_ and a List containing _handlerResult_ as _argumentsList_.
+    1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] passing **undefined** as _thisArgument_ and (_handlerResult_) as _argumentsList_.
+1. NextTask _status_.
 
 ## The Promise Constructor
 
-The Promise constructor is the %Promise% intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initializes its **this** value with the internal state necessary to support the `Promise.prototype` methods.
+The Promise constructor is the %Promise% intrinsic object and the initial value of the `Promise` property of the global object. When `Promise` is called as a function rather than as a constructor, it initialises its **this** value with the internal state necessary to support the `Promise.prototype` methods.
 
-The `Promise` constructor is designed to be subclassable. It may be used as the value of an `extends` clause of a class declaration. Subclass constructors that intended to inherit the specified `Promise` behavior must include a `super` call to the `Promise` constructor.
+The `Promise` constructor is designed to be subclassable. It may be used as the value in an `extends` clause of a class definition. Subclass constructors that intend to inherit the specified `Promise` behaviour must include a `super` call to `Promise`.
 
-### Promise ( resolver )
+### Promise ( executor )
+
+When the `Promise` function is called with argument _executor_ the following steps are taken:
 
 1. Let _promise_ be the **this** value.
+1. If IsCallable(_executor_) is **false**, then throw a **TypeError** exception.
 1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
 1. If _promise_ does not have a [[PromiseStatus]] internal slot, then throw a **TypeError** exception.
 1. If _promise_'s [[PromiseStatus]] internal slot is not **undefined**, then throw a **TypeError** exception.
-1. If IsCallable(_resolver_) is **false**, then throw a **TypeError** exception.
+1. Return InitializePromise(_promise_, _executor_).
+
+NOTE
+
+The _executor_ argument must be a function object. It is called for initiating and reporting completion of the possibly deferred action represented by this Promise object. The executor is called with two arguments: _resolve_ and _reject_. These are functions that may be used by the _executor_ function to report eventual completion or failure of the deferred computation. Returning from the executor function does not mean that the deferred action has been completed but only that the request to eventually perform the deferred action has been accepted.
+
+The _resolve_ function that is passed to an executor function accepts a single argument. The executor code may eventually call the _resolve_ function to indicate that it wishes to resolve the associated Promise objecct. The argument passed to the _resolve_ function represents the eventual value of the deferred action and can be either the actual fulfillment value or another Promise object which will provide the value if it is fullfilled.
+
+The _reject_ function that is passed to an executor function accepts a single argument. The executor code may eventually call the _reject_ function to indicate that the associated Promise is rejected and will never be fulfilled. The argument passed to the reject function is used as the rejection value of the promise. Typically it will be an `Error` object.
+
+The resolve and reject functions passed to an _executor_ function by the Promise constructor have the capability to actually resolve and reject the associated promise. Subclasses may have different constructor behavior that passes in customized values for resolve and reject.
+
+####  InitialisePromise( promise, executor) Abstract Operation
+
+The abstract operation InitialisePromise initialises a newly allocated _promise_ object using an _executor_ function.
+
+1. Assert: _promise_ has a have a [[PromiseStatus]] internal slot and it’s value is **undefined**.
+1. Assert: IsCallable(_executor_) is **true**.
 1. Set _promise_'s [[PromiseStatus]] internal slot to `"unresolved"`.
-1. Set _promise_'s [[ResolveReactions]] internal slot to a new empty List.
-1. Set _promise_'s [[RejectReactions]] internal slot to a new empty List.
-1. Let _resolve_ be a new built-in function object as defined in Resolve Promise Functions.
-1. Set the [[Promise]] internal slot of _resolve_ to _promise_.
-1. Let _reject_ be a new built-in function object as defined in Reject Promise Functions.
-1. Set the [[Promise]] internal slot of _reject_ to _promise_.
-1. Let _result_ be the result of calling the [[Call]] internal method of _resolver_ with **undefined** as _thisArgument_ and a List containing _resolve_ and _reject_ as _argumentsList_.
-1. If _result_ is an abrupt completion, call PromiseReject(_promise_, _result_.[[value]]).
+1. Set _promise_'s [[PromiseResolveReactions]] internal slot to a new empty List.
+1. Set _promise_'s [[PromiseRejectReactions]] internal slot to a new empty List.
+1. Let _resolve_ be CreateResolveFunction(_promise_).
+1. Let _reject_ be CreateRejectFunction(_promise_).
+1. Let _completion_ be the result of calling the [[Call]] internal method of _executor_ with **undefined** as _thisArgument_ and (_resolve_, _reject_) as _argumentsList_.
+1. If _completion_ is an abrupt completion, then
+    1. Let _status_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and (_completion_.[[value]]) as _argumentsList_.
+    1. ReturnIfAbrupt(_status_).
 1. Return _promise_.
 
 ### new Promise ( ... argumentsList )
@@ -239,251 +288,286 @@ When `Promise` is called as part of a `new` expression it is a constructor: it i
 
 `Promise` called as part of a new expression with argument list _argumentsList_ performs the following steps:
 
-1. Let _F_ be the `Promise` function object on which the `new` operator was applied.
-1. Let _argumentsList_ be the _argumentsList_ argument of the [[Construct]] internal method that was invoked by the `new` operator.
-1. Return the result of OrdinaryConstruct(_F_, _argumentsList_).
+1. Let _F_ be the `Promise` function object on which the new operator was applied.
+1. Let _argumentsList_ be the _argumentsList_ argument of the [[Construct]] internal method that was invoked by the new operator.
+1. Return Construct(_F_, _argumentsList_).
 
-If Promise is implemented as an ordinary function object, its [[Construct]] internal method will perform the above steps.
+If Promise is implemented as an ECMAScript function object, its [[Construct]] internal method will perform the above steps.
 
-## Properties of the Promise Constructor
+##  Properties of the Promise Constructor
 
-### Promise \[ @@create \] ( )
+The value of the [[Prototype]] internal slot of the `Promise` constructor is the `Function` prototype object.
 
-1. Let _F_ be the **this** value.
-1. Let _obj_ be the result of calling OrdinaryCreateFromConstructor(_F_, "%PromisePrototype%", ([[PromiseStatus]], [[PromiseConstructor]], [[Result]], [[ResolveReactions]], [[RejectReactions]])).
-1. Set _obj_'s [[PromiseConstructor]] internal slot to _F_.
-1. Return _obj_.
-
-This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **true** }.
+Besides the length `property` (whose value is 1), the Promise constructor has the following properties:
 
 ### Promise.all ( iterable )
 
-`all` returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
+The `all` function returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
 1. Let _C_ be the **this** value.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _iterator_ be the result of calling GetIterator(_iterable_).
-1. RejectIfAbrupt(_iterator_, _deferred_).
-1. Let _values_ be the result of calling ArrayCreate(0).
-1. Let _countdownHolder_ be Record { [[Countdown]]: 0 }.
+1. Let _promiseCapability_ be NewPromiseCapability (_C_).
+1. ReturnIfAbrupt(_promiseCapability_).
+1. Let _iterator_ be GetIterator(_iterable_).
+1. IfAbruptRejectPromise(_iterator_, _promiseCapability_).
+1. Let _values_ be ArrayCreate(0).
+1. Let _remainingElementsCount_ be a new Record { [[value]]: 0 }.
 1. Let _index_ be 0.
 1. Repeat
-    1. Let _next_ be the result of calling IteratorStep(_iterator_).
-    1. RejectIfAbrupt(_next_, _deferred_).
+    1. Let _next_ be IteratorStep(_iterator_).
+    1. IfAbruptRejectPromise(_next_, _promiseCapability_).
     1. If _next_ is **false**,
         1. If _index_ is 0,
-            1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _values_ as _argumentsList_.
+            1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_values_) as _argumentsList_.
             1. ReturnIfAbrupt(_resolveResult_).
-        1. Return _deferred_.[[Promise]].
-    1. Let _nextValue_ be the result of calling IteratorValue(_next_).
-    1. RejectIfAbrupt(_nextValue_, _deferred_).
-    1. Let _nextPromise_ be the result of calling Invoke(_C_, `"cast"`, (_nextValue_)).
-    1. RejectIfAbrupt(_nextPromise_, _deferred_).
-    1. Let _countdownFunction_ be a new built-in function object as defined in Promise.all Countdown Functions.
-    1. Set the [[Index]] internal slot of _countdownFunction_ to _index_.
-    1. Set the [[Values]] internal slot of _countdownFunction_ to _values_.
-    1. Set the [[Deferred]] internal slot of _countdownFunction_ to _deferred_.
-    1. Set the [[CountdownHolder]] internal slot of _countdownFunction_ to _countdownHolder_.
-    1. Let _result_ be the result of calling Invoke(_nextPromise_, `"then"`, (_countdownFunction_, _deferred_.[[Reject]])).
-    1. RejectIfAbrupt(_result_, _deferred_).
+        1. Return _promiseCapability_.[[Promise]].
+    1. Let _nextValue_ be IteratorValue(_next_).
+    1. IfAbruptRejectPromise(_nextValue_, _promiseCapability_).
+    1. Let _nextPromise_ be Invoke(_C_, `"cast"`, (_nextValue_)).
+    1. IfAbruptRejectPromise(_nextPromise_, _promiseCapability_).
+    1. Let _resolveElement_ be a new built-in function object as defined in Promise.all Resolve Element Functions.
+    1. Set the [[Index]] internal slot of _resolveElement_ to _index_.
+    1. Set the [[Values]] internal slot of _resolveElement_ to _values_.
+    1. Set the [[Capabilities]] internal slot of _resolveElementFunction_ to _promiseCapabilities_.
+    1. Set the [[RemainingElements]] internal slot of _resolveElement_ to _remainingElementsCount_.
+    1. Let _result_ be Invoke(_nextPromise_, `"then"`, (_resolveElement_, _promiseCapability_.[[Reject]])).
+    1. IfAbruptRejectPromise(_result_, _promiseCapability_).
     1. Set _index_ to _index_ + 1.
-    1. Set _countdownHolder_.[[Countdown]] to _countdownHolder_.[[Countdown]] + 1.
+    1. Set _remainingElementsCount_.[[value]] to _remainingElementsCount_.[[value]] + 1.
 
-Note: The `all` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `all` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor.
+
+#### Promise.all Resolve Element Functions
+
+A Promise.all resolve element function is an anonymous built-in function that is used to resolve a specific Promise.all element.. Each Promise.all resolve element function has [[Index]], [[Values]], [[Capabilities]], and [[RemainingElements]] internal slots.
+
+When a Promise.all resolve element function _F_ is called with argument _x_, the following steps are taken:
+
+1. Let _index_ be the value of _F_'s [[Index]] internal slot.
+1. Let _values_ be the value of _F_'s [[Values]] internal slot.
+1. Let _promiseCapability_ be the value of _F_'s [[Capabilities]] internal slot.
+1. Let _remainingElementsCount_ be the value of _F_'s [[RemainingElements]] internal slot.
+1. Let _result_ be CreateDataProperty(_values_, ToString(_index_), _x_).
+1. IfAbruptRejectPromise(_result_, _promiseCapability_).
+1. Set _remainingElementsCount_.[[value]] to _remainingElementsCount_.[[value]] - 1.
+1. If _remainingElementsCount_.[[value]] is 0,
+    1. Return the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_values_) as _argumentsList_.
+1. Return **undefined**.
 
 ### Promise.cast ( x )
 
-`cast` coerces its argument to a promise, or returns the argument if it is already a promise.
+The `cast` function called with argument _x_ performs the following steps:
 
 1. Let _C_ be the **this** value.
 1. If IsPromise(_x_) is **true**,
     1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
     1. If SameValue(_constructor_, _C_) is **true**, return _x_.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
+1. Let _promiseCapability_ be NewPromiseCapability (_C_).
+1. ReturnIfAbrupt(_promiseCapability_).
+1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_x_) as _argumentsList_.
 1. ReturnIfAbrupt(_resolveResult_).
-1. Return _deferred_.[[Promise]].
+1. Return _promiseCapability_.[[Promise]].
 
-Note: The `cast` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `cast` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor.
+
+### Promise.prototype
+
+The initial value of `Promise.prototype` is the Promise prototype object.
+
+This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **false** }.
 
 ### Promise.race ( iterable )
 
-`race` returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
+The `race` function returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
 
 1. Let _C_ be the **this** value.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _iterator_ be the result of calling GetIterator(_iterable_).
-1. RejectIfAbrupt(_iterator_, _deferred_).
+1. Let _promiseCapability_ be NewPromiseCapability(_C_).
+1. ReturnIfAbrupt(_promiseCapability_).
+1. Let _iterator_ be GetIterator(_iterable_).
+1. IfAbruptRejectPromise(_iterator_, _promiseCapability_).
 1. Repeat
-    1. Let _next_ be the result of calling IteratorStep(_iterator_).
-    1. RejectIfAbrupt(_next_, _deferred_).
-    1. If _next_ is **false**, return _deferred_.[[Promise]].
-    1. Let _nextValue_ be the result of calling IteratorValue(_next_).
-    1. RejectIfAbrupt(_nextValue_, _deferred_).
-    1. Let _nextPromise_ be the result of calling Invoke(_C_, `"cast"`, (_nextValue_)).
-    1. RejectIfAbrupt(_nextPromise_, _deferred_).
-    1. Let _result_ be the result of calling Invoke(_nextPromise_, `"then"`, (_deferred_.[[Resolve]], _deferred_.[[Reject]])).
-    1. RejectIfAbrupt(_result_, _deferred_).
+    1. Let _next_ be IteratorStep(_iterator_).
+    1. IfAbruptRejectPromise(_next_, _promiseCapability_).
+    1. If _next_ is **false**, return _promiseCapability_.[[Promise]].
+    1. Let _nextValue_ be IteratorValue(_next_).
+    1. IfAbruptRejectPromise(_nextValue_, _promiseCapability_).
+    1. Let _nextPromise_ Invoke(_C_, `"cast"`, (_nextValue_)).
+    1. IfAbruptRejectPromise(_nextPromise_, _promiseCapability_).
+    1. Let _result_ be Invoke(_nextPromise_, `"then"`, (_promiseCapability_.[[Resolve]], _promiseCapability_.[[Reject]])).
+    1. IfAbruptRejectPromise(_result_, _promiseCapability_).
 
-Note: The `race` function is an intentionally generic utility method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `race` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor. It also requires that its **this** value provides a `cast` method.
 
 ### Promise.reject ( r )
 
-`reject` returns a new promise rejected with the passed argument.
+The `reject` function returns a new promise rejected with the passed argument.
 
 1. Let _C_ be the **this** value.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _r_ as _argumentsList_.
+1. Let _promiseCapability_ be NewPromiseCapability(_C_).
+1. ReturnIfAbrupt(_promiseCapability_).
+1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] with **undefined** as _thisArgument_ and (_r_) as _argumentsList_.
 1. ReturnIfAbrupt(_rejectResult_).
-1. Return _deferred_.[[Promise]].
+1. Return _promiseCapability_.[[Promise]].
 
-Note: The `reject` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `reject` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor.
 
 ### Promise.resolve ( x )
 
-`resolve` returns a new promise resolved with the passed argument.
+The `resolve` function returns a new promise resolved with the passed argument.
 
 1. Let _C_ be the **this** value.
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Resolve]] with **undefined** as _thisArgument_ and a List containing _x_ as _argumentsList_.
+1. Let _promiseCapability_ be NewPromiseCapability(_C_).
+1. ReturnIfAbrupt(_promiseCapability_).
+1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_x_) as _argumentsList_.
 1. ReturnIfAbrupt(_resolveResult_).
-1. Return _deferred_.[[Promise]].
+1. Return _promiseCapability_.[[Promise]].
 
-Note: The `resolve` function is an intentionally generic factory method; it does not require that its **this** value be the Promise constructor. Therefore, it can be transferred to or inherited by any other constructors that may be called with a single function argument.
+Note: The `resolve` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor.
+
+### Promise \[ @@create \] ( )
+
+The @@create method of a Promise function object _F_ performs the following steps:
+
+1. Let _F_ be the **this** value.
+1. Return AllocatePromise(_F_).
+
+The value of the `name` property of this function is `"[Symbol.create]"`.
+
+This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **true** }.
+
+#### AllocatePromise ( constructor ) Abstraction Operation
+
+The abstract operation AllocatePromise allocates a new promise _promise_ object using the _constructor_ argument.
+
+1. Let _obj_ be OrdinaryCreateFromConstructor(_constructor_, `"%PromisePrototype%"`, ([[PromiseStatus]], [PromiseConstructor]], [[PromiseResult]], [[PromiseResolveReactions]], [PromiseRejectReactions]]) ).
+1. Set _obj_'s [[PromiseConstructor]] internal slot to _constructor_.
+1. Return _obj_.
 
 ## Properties of the Promise Prototype Object
 
-The Promise prototype object is itself an ordinary object. It is not a Promise instance and does not have any of the promise instances' internal slots, such as [[PromiseStatus]].
-
-The value of the [[Prototype]] internal slot of the Promise prototype object is the standard built-in Object prototype object.
-
-### Promise.prototype.constructor
-
-The initial value of `Promise.prototype.constructor` is the built-in `Promise` constructor.
+The value of the [[Prototype]] internal slot of the Promise prototype object is the standard built-in Object prototype object. The Promise prototype object is an ordinary object. It does not have a [[PromiseStatus]] internal slot or any of the other internal slots of Promise instances..
 
 ### Promise.prototype.catch ( onRejected )
 
-1. Let _promise_ be the **this** value.
-1. Return the result of calling Invoke(_promise_, `"then"`, (**undefined**, _onRejected_)).
+When the `catch` method is called with argument _onRejected_ the following steps are taken:
 
-Note: The `catch` function is intentionally generic; it does not require that its **this** value be a Promise object. Therefore, it can be transferred to other kinds of objects for use as a method.
+1. Let _promise_ be the **this** value.
+1. Return the result of Invoke(_promise_, `"then"`, (**undefined**, _onRejected_)).
+
+### Promise.prototype.constructor
+
+The initial value of `Promise.prototype.constructor` is the standard built-in `Promise` constructor.
 
 ### Promise.prototype.then ( onFulfilled , onRejected )
 
+When the `then` method is called with arguments _onFulfilled_ and _onRejected_ the following steps are taken:
+
 1. Let _promise_ be the **this** value.
 1. If IsPromise(_promise_) is **false**, throw a **TypeError** exception.
-1. Let _C_ be the result of calling Get(_promise_, "constructor").
+1. Let _C_ be Get(_promise_, "constructor").
 1. ReturnIfAbrupt(_C_).
-1. Let _deferred_ be the result of calling GetDeferred(_C_).
-1. ReturnIfAbrupt(_deferred_).
-1. Let _rejectionHandler_ be a new built-in function object as defined in Thrower Functions.
-1. If IsCallable(_onRejected_), set _rejectionHandler_ to _onRejected_.
-1. Let _fulfillmentHandler_ be a new built-in function object as defined in Identity Functions.
-1. If IsCallable(_onFulfilled_), set _fulfillmentHandler_ to _onFulfilled_.
-1. Let _resolutionHandler_ be a new built-in function object as defined in Promise Resolution Handler Functions.
+1. Let _promiseCapability_ be NewPromiseCapability(_C_).
+1. ReturnIfAbrupt(_promiseCapability_).
+1. If IsCallable(_onRejected_) is **true**, then
+    1. Let _rejectionHandler_ be _onRejected_.
+1. Else,
+    1. Let _rejectionHandler_ be a new Thrower Function.
+1. If IsCallable(_onFulfilled_) is **true**, then
+    1. Let _fulfillmentHandler_ be _onFulfilled_.
+1. Else,
+    1. Let _fulfillmentHandler_ be a new Identity Function.
+1. Let _resolutionHandler_ be a new Promise Resolution Handler Function.
 1. Set the [[Promise]] internal slot of _resolutionHandler_ to _promise_.
 1. Set the [[FulfillmentHandler]] internal slot of _resolutionHandler_ to _fulfillmentHandler_.
 1. Set the [[RejectionHandler]] internal slot of _resolutionHandler_ to _rejectionHandler_.
-1. Let _resolveReaction_ be the PromiseReaction { [[Deferred]]: _deferred_, [[Handler]]: _resolutionHandler_ }.
-1. Let _rejectReaction_ be the PromiseReaction { [[Deferred]]: _deferred_, [[Handler]]: _rejectionHandler_ }.
+1. Let _resolveReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _resolutionHandler_ }.
+1. Let _rejectReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _rejectionHandler_ }.
 1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"unresolved"`,
-    1. Append _resolveReaction_ as the last element of _promise_'s [[ResolveReactions]] internal slot.
-    1. Append _rejectReaction_ as the last element of _promise_'s [[RejectReactions]] internal slot.
-1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`,
-    1. Let _resolution_ be the value of _promise_'s [[Result]] internal slot.
-    1. Call QueueMicrotask(ExecutePromiseReaction, (_resolveReaction_, _resolution_)).
-1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`,
-    1. Let _reason_ be the value of _promise_'s [[Result]] internal slot.
-    1. Call QueueMicrotask(ExecutePromiseReaction, (_rejectReaction_, _reason_)).
-1. Return _deferred_.[[Promise]].
+    1. Append _resolveReaction_ as the last element of the List that is the value of _promise_'s [[PromiseResolveReactions]] internal slot.
+    1. Append _rejectReaction_ as the last element of the List that is the value of _promise_'s [[PromiseRejectReactions]] internal slot.
+1. Else if the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`,
+    1. Let _resolution_ be the value of _promise_'s [[PromiseResult]] internal slot.
+    1. Call EnqueueTask(`"PromiseTasks"`, PromiseReactionTask, (_resolveReaction_, _resolution_)).
+1. Else if the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`,
+    1. Let _reason_ be the value of _promise_'s [[PromiseResult]] internal slot.
+    1. Call EnqueueTask((`"PromiseTasks"`, (_rejectReaction_, _reason_)).
+1. Return _promiseCapability_.[[Promise]].
 
-Note: The `then` function is not generic. If the **this** value is not an object with an [[PromiseStatus]] internal slot initialized to **true**, a **TypeError** exception is immediately thrown when it is called.
+#### Identity Functions
+
+An identify function is an anonymous built-in function that when called with argument _x_, performs the following steps:
+
+1. Return _x_.
+
+#### Promise Resolution Handler Functions
+
+A promise resolution handler function is an anonymous built-in function that has the ability to handle a promise being resolved, by "unwrapping" any incoming values until they are no longer promises or thenables and can be passed to the appropriate fulfillment handler.
+
+Each promise resolution handler function has [[Promise]], [[FulfillmentHandler]], and [[RejectionHandler]] internal slots.
+
+When a promise resolution handler function _F_ is called with argument _x_, the following steps are taken:
+
+1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
+1. Let _fulfillmentHandler_ be the value of _F_'s [[FulfillmentHandler]] internal slot.
+1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
+1. If SameValue(_x_, _promise_) is **true**, then
+    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
+    1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and (_selfResolutionError_) as _argumentsList_.
+1. Let _C_ be the value of _promise_'s [[PromiseConstructor]] internal slot.
+1. Let _promiseCapability_ be NewPromiseCapability(_C_).
+1. ReturnIfAbrupt(_promiseCapability_).
+1. Let _updateResult_ be UpdateDeferredFromPotentialThenable(_x_, _promiseCapability_).
+1. ReturnIfAbrupt(_updateResult_).
+1. If _updateResult_ is not `"not a thenable"`, then
+    1. Return the result of Invoke(_promiseCapability_.[[Promise]], `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
+1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and (_x_) as _argumentsList_.
+
+#### Thrower Functions
+
+A thrower function is an anonymous built-in function that when called with argument _e_, performs the following steps:
+
+1. Return Completion{[[type]]: throw, [[value]]: e, [[target]]:empty}.
+
+### Promise.prototype \[ @@toStringTag \]
+
+The initial value of the @@toStringTag property is the string value `"Promise"`.
+
+This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **false**, [[Configurable]]: **true** }.
 
 ## Properties of Promise Instances
 
-Promise instances are ordinary objects that inherit properties from the Promise prototype (the intrinsic, %PromisePrototype%). Promise instances are initially created with the internal slots described in this table.
+Promise instances are ordinary objects that inherit properties from the Promise prototype object (the intrinsic, %PromisePrototype%). Promise instances are initially created with the internal slots described in this table.
 
 <table>
     <caption>Internal Slots of Promise Instances</caption>
     <thead>
         <tr>
-            <th>Internal Slot Name</th>
+            <th>Internal Slot</th>
             <th>Description</th>
         </tr>
     </thead>
     <tbody>
          <tr>
             <td>[[PromiseStatus]]</td>
-            <td>A string value that governs how a promise will react to incoming calls to its <code>then</code> method. The possible values are: <code>"unresolved"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
+            <td>A string value that governs how a promise will react to incoming calls to its then method. The possible values are: <b>undefined</b>, <code>"unresolved"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
          </tr>
          <tr>
             <td>[[PromiseConstructor]]</td>
             <td>The function object that was used to construct this promise. Checked by the <code>cast</code> method of the <code>Promise</code> constructor.</td>
          </tr>
          <tr>
-            <td>[[Result]]</td>
+            <td>[[PromiseResult]]</td>
             <td>The value with which the promise has been resolved or rejected, if any. Only meaningful if [[PromiseStatus]] is not <code>"unresolved"</code>.</td>
          </tr>
          <tr>
-            <td>[[ResolveReactions]]</td>
-            <td>A List of PromiseReactions to be processed when/if the promise transitions from being unresolved to having a resolution.</td>
+            <td>[[PromiseResolveReactions]]</td>
+            <td>A List of PromiseReaction records to be processed when/if the promise transitions from being unresolved to having a resolution.</td>
          </tr>
          <tr>
-            <td>[[RejectReactions]]</td>
-            <td>A List of PromiseReactions to be processed when/if the promise transitions from being unresolved to having a rejection.</td>
+            <td>[[PromiseRejectReactions]]</td>
+            <td>A List of PromiseReaction records to be processed when/if the promise transitions from being unresolved to having a rejection.</td>
          </tr>
     </tbody>
 </table>
-
-# Deltas to Other Areas of the Spec
-
-## ???
-
-Somewhere in the spec—I'm not sure where—add the following abstract operation:
-
-### QueueMicrotask ( microtask, argumentsList )
-
-The abstract operation QueueMicrotask performs the implementation-specific operation of "queueing a microtask" to run the given microtask steps. The only important invariant required by this specification is that the microtask steps must be run with an empty execution context stack. Once this is guaranteed,
-
-1. Run the steps specified by _microtask_, passing _argumentsList_.
-
-## Well-Known Intrinsic Objects Table
-
-Add the following rows:
-
-<table>
-   <tr>
-      <td>%Promise%</td>
-      <td>The initial value of the global object property named <code>"Promise"</code>.</td>
-   </tr>
-   <tr>
-      <td>%PromisePrototype%</td>
-      <td>The initial value of the <code>"prototype"</code> data property of the intrinsic %Promise%.</td>
-   </tr>
-</table>
-
-## The Completion Record Specification Type
-
-Add the following section:
-
-### RejectIfAbrupt
-
-Algorithm steps that say
-
-1. RejectIfAbrupt(_argument_, _deferred_).
-
-mean the same things as:
-
-1. If _argument_ is an abrupt completion,
-    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _deferred_.[[Reject]] with **undefined** as _thisArgument_ and a List containing _argument_.[[value]] as _argumentsList_.
-    1. ReturnIfAbrupt(_rejectResult_).
-    1. Return _deferred_.[[Promise]].
-1. Else if _argument_ is a Completion Record, then let _argument_ be _argument_.[[value]].
 
 ---
 

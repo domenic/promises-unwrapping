@@ -147,6 +147,7 @@ The abstract operation NewPromiseCapability takes a constructor function, and at
 1. If IsConstructor(_C_) is **false**, throw a **TypeError**.
 1. Assert: _C_ is a constructor function that supports the parameter conventions of the `Promise` constructor.
 1. Let _promise_ be CreateFromConstructor(_C_).
+1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
 1. ReturnIfAbrupt(_promise_).
 1. Return CreatePromiseCapabilityRecord(_promise_, _C_).
 

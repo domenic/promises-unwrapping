@@ -1,3 +1,9 @@
+# Status
+
+**This proposal has progressed to the Draft ECMAScript 6 Specification, which is available for review [on the official ECMAScript wiki](http://wiki.ecmascript.org/doku.php?id=harmony:specification_drafts).** When referencing the promises specification, you should reference the draft ECMAScript 6 spec, and not this repository.
+
+We are still using this repository as a way to fix [the remaining issues](https://github.com/domenic/promises-unwrapping/issues) with the promises specification, and as such it may be slightly ahead of the draft specification as we perform that work. However, we must emphasize it is only a staging ground.
+
 # Promise Objects
 
 A Promise is an object that is used as a placeholder for the eventual results of a deferred (and possibly asynchronous) computation.

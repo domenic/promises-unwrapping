@@ -309,7 +309,7 @@ Besides the `length` property (whose value is 1), the Promise constructor has th
 
 ### Promise.all ( iterable )
 
-The `all` function returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It casts all elements of the passed iterable to promises as it runs this algorithm.
+The `all` function returns a new promise which is fulfilled with an array of fulfillment values for the passed promises, or rejects with the reason of the first passed promise that rejects. It resolves all elements of the passed iterable to promises as it runs this algorithm.
 
 1. Let _C_ be the **this** value.
 1. Let _promiseCapability_ be NewPromiseCapability(_C_).
@@ -329,7 +329,7 @@ The `all` function returns a new promise which is fulfilled with an array of ful
         1. Return _promiseCapability_.[[Promise]].
     1. Let _nextValue_ be IteratorValue(_next_).
     1. IfAbruptRejectPromise(_nextValue_, _promiseCapability_).
-    1. Let _nextPromise_ be Invoke(_C_, `"cast"`, (_nextValue_)).
+    1. Let _nextPromise_ be Invoke(_C_, `"resolve"`, (_nextValue_)).
     1. IfAbruptRejectPromise(_nextPromise_, _promiseCapability_).
     1. Let _resolveElement_ be a new built-in function object as defined in Promise.all Resolve Element Functions.
     1. Set the [[Index]] internal slot of _resolveElement_ to _index_.
@@ -360,22 +360,6 @@ When a Promise.all resolve element function _F_ is called with argument _x_, the
     1. Return the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_values_) as _argumentsList_.
 1. Return **undefined**.
 
-### Promise.cast ( x )
-
-The `cast` function called with argument _x_ performs the following steps:
-
-1. Let _C_ be the **this** value.
-1. If IsPromise(_x_) is **true**,
-    1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
-    1. If SameValue(_constructor_, _C_) is **true**, return _x_.
-1. Let _promiseCapability_ be NewPromiseCapability(_C_).
-1. ReturnIfAbrupt(_promiseCapability_).
-1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_x_) as _argumentsList_.
-1. ReturnIfAbrupt(_resolveResult_).
-1. Return _promiseCapability_.[[Promise]].
-
-Note: The `cast` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor.
-
 ### Promise.prototype
 
 The initial value of `Promise.prototype` is the Promise prototype object.
@@ -384,7 +368,7 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
 
 ### Promise.race ( iterable )
 
-The `race` function returns a new promise which is settled in the same way as the first passed promise to settle. It casts all elements of the passed iterable to promises as it runs this algorithm.
+The `race` function returns a new promise which is settled in the same way as the first passed promise to settle. It resolves all elements of the passed iterable to promises as it runs this algorithm.
 
 1. Let _C_ be the **this** value.
 1. Let _promiseCapability_ be NewPromiseCapability(_C_).
@@ -397,12 +381,12 @@ The `race` function returns a new promise which is settled in the same way as th
     1. If _next_ is **false**, return _promiseCapability_.[[Promise]].
     1. Let _nextValue_ be IteratorValue(_next_).
     1. IfAbruptRejectPromise(_nextValue_, _promiseCapability_).
-    1. Let _nextPromise_ be Invoke(_C_, `"cast"`, (_nextValue_)).
+    1. Let _nextPromise_ be Invoke(_C_, `"resolve"`, (_nextValue_)).
     1. IfAbruptRejectPromise(_nextPromise_, _promiseCapability_).
     1. Let _result_ be Invoke(_nextPromise_, `"then"`, (_promiseCapability_.[[Resolve]], _promiseCapability_.[[Reject]])).
     1. IfAbruptRejectPromise(_result_, _promiseCapability_).
 
-Note: The `race` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor. It also requires that its **this** value provides a `cast` method.
+Note: The `race` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor. It also requires that its **this** value provides a `resolve` method.
 
 ### Promise.reject ( r )
 
@@ -419,9 +403,12 @@ Note: The `reject` function requires its **this** value to be a constructor func
 
 ### Promise.resolve ( x )
 
-The `resolve` function returns a new promise resolved with the passed argument.
+The `resolve` function returns a new promise resolved with the passed argument, or returns the argument if it is already a promise branded with the correct type.
 
 1. Let _C_ be the **this** value.
+1. If IsPromise(_x_) is **true**,
+    1. Let _constructor_ be the value of _x_'s [[PromiseConstructor]] internal slot.
+    1. If SameValue(_constructor_, _C_) is **true**, return _x_.
 1. Let _promiseCapability_ be NewPromiseCapability(_C_).
 1. ReturnIfAbrupt(_promiseCapability_).
 1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_x_) as _argumentsList_.
@@ -559,7 +546,7 @@ Promise instances are ordinary objects that inherit properties from the Promise 
          </tr>
          <tr>
             <td>[[PromiseConstructor]]</td>
-            <td>The function object that was used to construct this promise. Checked by the <code>cast</code> method of the <code>Promise</code> constructor.</td>
+            <td>The function object that was used to construct this promise. Checked by the <code>resolve</code> method of the <code>Promise</code> constructor.</td>
          </tr>
          <tr>
             <td>[[PromiseResult]]</td>

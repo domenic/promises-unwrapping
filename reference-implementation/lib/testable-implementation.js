@@ -316,7 +316,7 @@ define_built_in_data_property(Promise, "all", function (iterable) {
 
         let nextPromise;
         try {
-            nextPromise = Invoke(C, "cast", [nextValue]);
+            nextPromise = Invoke(C, "resolve", [nextValue]);
         } catch (nextPromiseE) {
             return IfAbruptRejectPromise(nextPromiseE, promiseCapability);
         }
@@ -365,19 +365,6 @@ function new_built_in_PromiseDotAllResolveElement_Function() {
     return F;
 }
 
-define_built_in_data_property(Promise, "cast", function (x) {
-    let C = this;
-    if (IsPromise(x) === true) {
-        let constructor = get_slot(x, "[[PromiseConstructor]]");
-        if (SameValue(constructor, C) === true) {
-            return x;
-        }
-    }
-    let promiseCapability = NewPromiseCapability(C);
-    promiseCapability["[[Resolve]]"].call(undefined, x);
-    return promiseCapability["[[Promise]]"];
-});
-
 define_built_in_data_property(Promise, "race", function (iterable) {
     let C = this;
     let promiseCapability = NewPromiseCapability(C);
@@ -410,7 +397,7 @@ define_built_in_data_property(Promise, "race", function (iterable) {
 
         let nextPromise;
         try {
-            nextPromise = Invoke(C, "cast", [nextValue]);
+            nextPromise = Invoke(C, "resolve", [nextValue]);
         } catch (nextPromiseE) {
             return IfAbruptRejectPromise(nextPromiseE, promiseCapability);
         }
@@ -432,6 +419,12 @@ define_built_in_data_property(Promise, "reject", function (r) {
 
 define_built_in_data_property(Promise, "resolve", function (x) {
     let C = this;
+    if (IsPromise(x) === true) {
+        let constructor = get_slot(x, "[[PromiseConstructor]]");
+        if (SameValue(constructor, C) === true) {
+            return x;
+        }
+    }
     let promiseCapability = NewPromiseCapability(C);
     promiseCapability["[[Resolve]]"].call(undefined, x);
     return promiseCapability["[[Promise]]"];

@@ -13,7 +13,8 @@ describe("Evil promises should not be able to break invariants", function () {
         };
 
         var calledAlready = false;
-        Promise.resolve(evilPromise).then(function (value) {
+        var resolvedToEvil = OrdinaryConstruct(Promise, [function (resolve) { resolve(evilPromise); }]);
+        resolvedToEvil.then(function (value) {
             assert.strictEqual(calledAlready, false);
             calledAlready = true;
             assert.strictEqual(value, 1);

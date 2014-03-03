@@ -569,6 +569,23 @@ Promise instances are ordinary objects that inherit properties from the Promise 
     </tbody>
 </table>
 
+# Deltas to Other Areas of the Spec
+
+## Well-Known Intrinsic Objects Table
+
+Add the following rows:
+
+<table>
+   <tr>
+      <td>%Promise%</td>
+      <td>The initial value of the global object property named <code>"Promise"</code>.</td>
+   </tr>
+   <tr>
+      <td>%PromisePrototype%</td>
+      <td>The initial value of the <code>"prototype"</code> data property of the intrinsic %Promise%.</td>
+   </tr>
+</table>
+
 ---
 
 <p xmlns:dct="http://purl.org/dc/terms/" xmlns:vcard="http://www.w3.org/2001/vcard-rdf/3.0#">

@@ -249,10 +249,10 @@ The `Promise` constructor is designed to be subclassable. It may be used as the 
 When the `Promise` function is called with argument _executor_ the following steps are taken:
 
 1. Let _promise_ be the **this** value.
-1. If IsCallable(_executor_) is **false**, then throw a **TypeError** exception.
 1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
 1. If _promise_ does not have a [[PromiseStatus]] internal slot, then throw a **TypeError** exception.
 1. If _promise_'s [[PromiseStatus]] internal slot is not **undefined**, then throw a **TypeError** exception.
+1. If IsCallable(_executor_) is **false**, then throw a **TypeError** exception.
 1. Return InitialisePromise(_promise_, _executor_).
 
 NOTE

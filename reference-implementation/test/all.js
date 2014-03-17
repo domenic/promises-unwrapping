@@ -91,4 +91,112 @@ describe("Promise.all", function () {
             }
         );
     });
+
+    describe("Using a promise that calls onFulfilled twice to trigger incorrect behavior", function () {
+        var badPromise;
+
+        beforeEach(function () {
+            badPromise = Promise.resolve();
+            badPromise.then = function (onFulfilled, onRejected) {
+                onFulfilled();
+                return Promise.prototype.then.call(this, onFulfilled, onRejected);
+            };
+        });
+
+        it("should not be able to prevent the countdown from reaching zero", function (done) {
+            var iterable = iterableFromArray([badPromise]);
+
+            Promise.all(iterable).then(function (result) {
+                assert.deepEqual(result, [undefined]);
+            })
+            .then(done, done);
+        });
+
+        it("should not be able to cause the returned promise to settle before all arguments", function (done) {
+            var returnedPromiseIsFulfilled = false;
+            var testFailed = false;
+
+            var iterable = iterableFromArray([
+                Promise.resolve(),
+                badPromise,
+                Promise.resolve()
+                    .then(function () {
+                        assert(!returnedPromiseIsFulfilled, "Should be fulfilled before returned promise");
+                    })
+                    .then(function () {
+                        assert(!returnedPromiseIsFulfilled, "Should be fulfilled before returned promise");
+                    })
+                    .catch(function (err) {
+                        testFailed = true;
+                        done(err);
+                    })
+            ]);
+
+            Promise.all(iterable)
+                .then(function () {
+                    returnedPromiseIsFulfilled = true;
+                })
+                .then(function () {
+                    setTimeout(function () {
+                        if (!testFailed) {
+                            done();
+                        }
+                    }, 50);
+                });
+        });
+
+        it("should not be able to return a fulfilled promise despite a rejected argument", function (done) {
+            var iterable = iterableFromArray([Promise.resolve(), badPromise, Promise.reject("reason")]);
+
+            Promise.all(iterable)
+                .then(
+                    function () {
+                        assert(false, "Should not be fulfilled");
+                    },
+                    function (r) {
+                        assert.strictEqual(r, "reason");
+                    }
+                )
+                .then(done, done);
+        });
+
+        it("should not be able to call a misbehaved subclass executor twice", function (done) {
+            var isInstrumented = true;
+            var resolveValues = [];
+
+            function PromiseWithBadStaticResolve(executor) {
+                if (isInstrumented) {
+                    isInstrumented = false;
+                    Promise.call(this, function (resolve, reject) {
+                        return executor(instrumentedResolve, reject);
+
+                        function instrumentedResolve(value) {
+                            resolveValues.push(value.slice());
+                            return resolve(value);
+                        }
+                    });
+                } else {
+                    Promise.call(this, executor);
+                }
+            }
+            PromiseWithBadStaticResolve.prototype = Object.create(Promise.prototype);
+            PromiseWithBadStaticResolve.prototype.constructor = PromiseWithBadStaticResolve;
+            PromiseWithBadStaticResolve.__proto__ = Promise;
+
+            PromiseWithBadStaticResolve.resolve = function (p) {
+                return p;
+            };
+
+            var iterable = iterableFromArray([Promise.resolve(0), badPromise, Promise.resolve(2)]);
+
+            PromiseWithBadStaticResolve.all(iterable).catch(done);
+
+            Promise.resolve().then(function () {
+                setTimeout(function () {
+                    assert.deepEqual(resolveValues, [[0, undefined, 2]]);
+                    done();
+                }, 50);
+            });
+        });
+    });
 });

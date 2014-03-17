@@ -317,38 +317,43 @@ The `all` function returns a new promise which is fulfilled with an array of ful
 1. Let _iterator_ be GetIterator(_iterable_).
 1. IfAbruptRejectPromise(_iterator_, _promiseCapability_).
 1. Let _values_ be ArrayCreate(0).
-1. Let _remainingElementsCount_ be a new Record { [[value]]: 0 }.
+1. Let _remainingElementsCount_ be a new Record { [[value]]: 1 }.
 1. Let _index_ be 0.
-1. Repeat
+1. Let _done_ be **false**.
+1. Repeat while _done_ is **false**,
     1. Let _next_ be IteratorStep(_iterator_).
     1. IfAbruptRejectPromise(_next_, _promiseCapability_).
-    1. If _next_ is **false**,
-        1. If _index_ is 0,
-            1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_values_) as _argumentsList_.
-            1. ReturnIfAbrupt(_resolveResult_).
-        1. Return _promiseCapability_.[[Promise]].
-    1. Let _nextValue_ be IteratorValue(_next_).
-    1. IfAbruptRejectPromise(_nextValue_, _promiseCapability_).
-    1. Let _nextPromise_ be Invoke(_C_, `"resolve"`, (_nextValue_)).
-    1. IfAbruptRejectPromise(_nextPromise_, _promiseCapability_).
-    1. Let _resolveElement_ be a new built-in function object as defined in Promise.all Resolve Element Functions.
-    1. Set the [[Index]] internal slot of _resolveElement_ to _index_.
-    1. Set the [[Values]] internal slot of _resolveElement_ to _values_.
-    1. Set the [[Capabilities]] internal slot of _resolveElement_ to _promiseCapabilities_.
-    1. Set the [[RemainingElements]] internal slot of _resolveElement_ to _remainingElementsCount_.
-    1. Let _result_ be Invoke(_nextPromise_, `"then"`, (_resolveElement_, _promiseCapability_.[[Reject]])).
-    1. IfAbruptRejectPromise(_result_, _promiseCapability_).
-    1. Set _index_ to _index_ + 1.
-    1. Set _remainingElementsCount_.[[value]] to _remainingElementsCount_.[[value]] + 1.
+    1. If _next_ is **false**, then let _done_ be **true**.
+    1. Else,
+        1. Let _nextValue_ be IteratorValue(_next_).
+        1. IfAbruptRejectPromise(_nextValue_, _promiseCapability_).
+        1. Let _nextPromise_ be Invoke(_C_, `"resolve"`, (_nextValue_)).
+        1. IfAbruptRejectPromise(_nextPromise_, _promiseCapability_).
+        1. Let _resolveElement_ be a new built-in function object as defined in Promise.all Resolve Element Functions.
+        1. Set the [[Index]] internal slot of _resolveElement_ to _index_.
+        1. Set the [[Values]] internal slot of _resolveElement_ to _values_.
+        1. Set the [[Capabilities]] internal slot of _resolveElement_ to _promiseCapabilities_.
+        1. Set the [[RemainingElements]] internal slot of _resolveElement_ to _remainingElementsCount_.
+        1. Set _remainingElementsCount_.[[value]] to _remainingElementsCount_.[[value]] + 1.
+        1. Let _result_ be Invoke(_nextPromise_, `"then"`, (_resolveElement_, _promiseCapability_.[[Reject]])).
+        1. IfAbruptRejectPromise(_result_, _promiseCapability_).
+        1. Set _index_ to _index_ + 1.
+1. Set _remainingElementsCount_.[[value]] to _remainingElementsCount_.[[value]] - 1.
+1. If _remainingElementsCount_.[[value]] is 0,
+    1. Let _resolveResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] with **undefined** as _thisArgument_ and (_values_) as _argumentsList_.
+    1. ReturnIfAbrupt(_resolveResult_).
+1. Return _promiseCapability_.[[Promise]].
 
 Note: The `all` function requires its **this** value to be a constructor function that supports the parameter conventions of the `Promise` constructor.
 
 #### Promise.all Resolve Element Functions
 
-A Promise.all resolve element function is an anonymous built-in function that is used to resolve a specific Promise.all element. Each Promise.all resolve element function has [[Index]], [[Values]], [[Capabilities]], and [[RemainingElements]] internal slots.
+A Promise.all resolve element function is an anonymous built-in function that is used to resolve a specific Promise.all element. Each Promise.all resolve element function has [[Index]], [[Values]], [[Capabilities]], [[RemainingElements]], and [[CalledAlready]] internal slots.
 
 When a Promise.all resolve element function _F_ is called with argument _x_, the following steps are taken:
 
+1. If the value of _F_'s [[CalledAlready]] internal slot is **true**, then return **undefined**.
+1. Set the [[CalledAlready]] internal slot of _F_ to **true**.
 1. Let _index_ be the value of _F_'s [[Index]] internal slot.
 1. Let _values_ be the value of _F_'s [[Values]] internal slot.
 1. Let _promiseCapability_ be the value of _F_'s [[Capabilities]] internal slot.

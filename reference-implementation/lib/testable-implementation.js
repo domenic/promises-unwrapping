@@ -289,10 +289,11 @@ define_built_in_data_property(Promise, "all", function (iterable) {
     }
 
     let values = ArrayCreate(0);
-    let remainingElementsCount = { "[[value]]": 0 };
+    let remainingElementsCount = { "[[value]]": 1 };
     let index = 0;
+    let done = false;
 
-    while(true) {
+    while(done === false) {
         let next;
         try {
             next = IteratorStep(iterator);
@@ -301,45 +302,55 @@ define_built_in_data_property(Promise, "all", function (iterable) {
         }
 
         if (next === false) {
-            if (index === 0) {
-                promiseCapability["[[Resolve]]"].call(undefined, values);
+            done = true;
+        } else {
+            let nextValue;
+            try {
+                nextValue = IteratorValue(next);
+            } catch (nextValueE) {
+                return IfAbruptRejectPromise(nextValueE, promiseCapability);
             }
-            return promiseCapability["[[Promise]]"];
+
+            let nextPromise;
+            try {
+                nextPromise = Invoke(C, "resolve", [nextValue]);
+            } catch (nextPromiseE) {
+                return IfAbruptRejectPromise(nextPromiseE, promiseCapability);
+            }
+
+            let resolveElement = new_built_in_PromiseDotAllResolveElement_Function();
+            set_slot(resolveElement, "[[Index]]", index);
+            set_slot(resolveElement, "[[Values]]", values);
+            set_slot(resolveElement, "[[Capabilities]]", promiseCapability);
+            set_slot(resolveElement, "[[RemainingElements]]", remainingElementsCount);
+
+            remainingElementsCount["[[value]]"] = remainingElementsCount["[[value]]"] + 1;
+
+            try {
+                Invoke(nextPromise, "then", [resolveElement, promiseCapability["[[Reject]]"]]);
+            } catch (resultE) {
+                return IfAbruptRejectPromise(resultE, promiseCapability);
+            }
+
+            index = index + 1;
         }
-
-        let nextValue;
-        try {
-            nextValue = IteratorValue(next);
-        } catch (nextValueE) {
-            return IfAbruptRejectPromise(nextValueE, promiseCapability);
-        }
-
-        let nextPromise;
-        try {
-            nextPromise = Invoke(C, "resolve", [nextValue]);
-        } catch (nextPromiseE) {
-            return IfAbruptRejectPromise(nextPromiseE, promiseCapability);
-        }
-
-        let resolveElement = new_built_in_PromiseDotAllResolveElement_Function();
-        set_slot(resolveElement, "[[Index]]", index);
-        set_slot(resolveElement, "[[Values]]", values);
-        set_slot(resolveElement, "[[Capabilities]]", promiseCapability);
-        set_slot(resolveElement, "[[RemainingElements]]", remainingElementsCount);
-
-        try {
-            Invoke(nextPromise, "then", [resolveElement, promiseCapability["[[Reject]]"]]);
-        } catch (resultE) {
-            return IfAbruptRejectPromise(resultE, promiseCapability);
-        }
-
-        index = index + 1;
-        remainingElementsCount["[[value]]"] = remainingElementsCount["[[value]]"] + 1;
     }
+
+    remainingElementsCount["[[value]]"] = remainingElementsCount["[[value]]"] - 1;
+    if (remainingElementsCount["[[value]]"] === 0) {
+        promiseCapability["[[Resolve]]"].call(undefined, values);
+    }
+
+    return promiseCapability["[[Promise]]"];
 });
 
 function new_built_in_PromiseDotAllResolveElement_Function() {
     let F = function (x) {
+        if (get_slot(F, "[[CalledAlready]]") === true) {
+            return undefined;
+        }
+        set_slot(F, "[[CalledAlready]]", true);
+
         let index = get_slot(F, "[[Index]]");
         let values = get_slot(F, "[[Values]]");
         let promiseCapability = get_slot(F, "[[Capabilities]]");
@@ -360,7 +371,7 @@ function new_built_in_PromiseDotAllResolveElement_Function() {
         return undefined;
     };
 
-    make_slots(F, ["[[Index]]", "[[Values]]", "[[Capabilities]]", "[[RemainingElements]]"]);
+    make_slots(F, ["[[Index]]", "[[Values]]", "[[Capabilities]]", "[[RemainingElements]]", "[[CalledAlready]]"]);
 
     return F;
 }

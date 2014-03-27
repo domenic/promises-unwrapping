@@ -291,9 +291,8 @@ define_built_in_data_property(Promise, "all", function (iterable) {
     let values = ArrayCreate(0);
     let remainingElementsCount = { "[[value]]": 1 };
     let index = 0;
-    let done = false;
 
-    while(done === false) {
+    while(true) {
         let next;
         try {
             next = IteratorStep(iterator);
@@ -302,54 +301,53 @@ define_built_in_data_property(Promise, "all", function (iterable) {
         }
 
         if (next === false) {
-            done = true;
-        } else {
-            let nextValue;
-            try {
-                nextValue = IteratorValue(next);
-            } catch (nextValueE) {
-                return IfAbruptRejectPromise(nextValueE, promiseCapability);
+            remainingElementsCount["[[value]]"] = remainingElementsCount["[[value]]"] - 1;
+            if (remainingElementsCount["[[value]]"] === 0) {
+                promiseCapability["[[Resolve]]"].call(undefined, values);
             }
 
-            let nextPromise;
-            try {
-                nextPromise = Invoke(C, "resolve", [nextValue]);
-            } catch (nextPromiseE) {
-                return IfAbruptRejectPromise(nextPromiseE, promiseCapability);
-            }
-
-            let resolveElement = new_built_in_PromiseDotAllResolveElement_Function();
-            set_slot(resolveElement, "[[Index]]", index);
-            set_slot(resolveElement, "[[Values]]", values);
-            set_slot(resolveElement, "[[Capabilities]]", promiseCapability);
-            set_slot(resolveElement, "[[RemainingElements]]", remainingElementsCount);
-
-            remainingElementsCount["[[value]]"] = remainingElementsCount["[[value]]"] + 1;
-
-            try {
-                Invoke(nextPromise, "then", [resolveElement, promiseCapability["[[Reject]]"]]);
-            } catch (resultE) {
-                return IfAbruptRejectPromise(resultE, promiseCapability);
-            }
-
-            index = index + 1;
+            return promiseCapability["[[Promise]]"];
         }
-    }
 
-    remainingElementsCount["[[value]]"] = remainingElementsCount["[[value]]"] - 1;
-    if (remainingElementsCount["[[value]]"] === 0) {
-        promiseCapability["[[Resolve]]"].call(undefined, values);
-    }
+        let nextValue;
+        try {
+            nextValue = IteratorValue(next);
+        } catch (nextValueE) {
+            return IfAbruptRejectPromise(nextValueE, promiseCapability);
+        }
 
-    return promiseCapability["[[Promise]]"];
+        let nextPromise;
+        try {
+            nextPromise = Invoke(C, "resolve", [nextValue]);
+        } catch (nextPromiseE) {
+            return IfAbruptRejectPromise(nextPromiseE, promiseCapability);
+        }
+
+        let resolveElement = new_built_in_PromiseDotAllResolveElement_Function();
+        set_slot(resolveElement, "[[AlreadyCalled]]", false);
+        set_slot(resolveElement, "[[Index]]", index);
+        set_slot(resolveElement, "[[Values]]", values);
+        set_slot(resolveElement, "[[Capabilities]]", promiseCapability);
+        set_slot(resolveElement, "[[RemainingElements]]", remainingElementsCount);
+
+        remainingElementsCount["[[value]]"] = remainingElementsCount["[[value]]"] + 1;
+
+        try {
+            Invoke(nextPromise, "then", [resolveElement, promiseCapability["[[Reject]]"]]);
+        } catch (resultE) {
+            return IfAbruptRejectPromise(resultE, promiseCapability);
+        }
+
+        index = index + 1;
+    }
 });
 
 function new_built_in_PromiseDotAllResolveElement_Function() {
     let F = function (x) {
-        if (get_slot(F, "[[CalledAlready]]") === true) {
+        if (get_slot(F, "[[AlreadyCalled]]") === true) {
             return undefined;
         }
-        set_slot(F, "[[CalledAlready]]", true);
+        set_slot(F, "[[AlreadyCalled]]", true);
 
         let index = get_slot(F, "[[Index]]");
         let values = get_slot(F, "[[Values]]");
@@ -371,7 +369,7 @@ function new_built_in_PromiseDotAllResolveElement_Function() {
         return undefined;
     };
 
-    make_slots(F, ["[[Index]]", "[[Values]]", "[[Capabilities]]", "[[RemainingElements]]", "[[CalledAlready]]"]);
+    make_slots(F, ["[[Index]]", "[[Values]]", "[[Capabilities]]", "[[RemainingElements]]", "[[AlreadyCalled]]"]);
 
     return F;
 }

@@ -36,10 +36,18 @@ function IfAbruptRejectPromise(value, capability) {
     return capability["[[Promise]]"];
 }
 
-function CreateRejectFunction(promise) {
+function CreateResolvingFunctions(promise) {
+    let alreadyResolved = { "[[value]]": false };
+
     let reject = new_built_in_Promise_Reject_Function();
     set_slot(reject, "[[Promise]]", promise);
-    return reject;
+    set_slot(reject, "[[AlreadyResolved]]", alreadyResolved);
+
+    let resolve = new_built_in_Promise_Resolve_Function();
+    set_slot(resolve, "[[Promise]]", promise);
+    set_slot(resolve, "[[AlreadyResolved]]", alreadyResolved);
+
+    return { "[[Resolve]]": resolve, "[[Reject]]": reject };
 }
 
 function new_built_in_Promise_Reject_Function() {
@@ -47,27 +55,18 @@ function new_built_in_Promise_Reject_Function() {
         assert(Type(get_slot(F, "[[Promise]]")) === "Object");
         let promise = get_slot(F, "[[Promise]]");
 
-        if (get_slot(promise, "[[PromiseStatus]]") !== "unresolved") {
+        let alreadyResolved = get_slot(F, "[[AlreadyResolved]]");
+        if (alreadyResolved["[[value]]"] === true) {
             return undefined;
         }
+        alreadyResolved["[[value]]"] = true;
 
-        let reactions = get_slot(promise, "[[PromiseRejectReactions]]");
-        set_slot(promise, "[[PromiseResult]]", reason);
-        set_slot(promise, "[[PromiseResolveReactions]]", undefined);
-        set_slot(promise, "[[PromiseRejectReactions]]", undefined);
-        set_slot(promise, "[[PromiseStatus]]", "has-rejection");
-        return TriggerPromiseReactions(reactions, reason);
+        RejectPromise(promise, reason);
     };
 
-    make_slots(F, ["[[Promise]]"]);
+    make_slots(F, ["[[Promise]]", "[[AlreadyResolved]]"]);
 
     return F;
-}
-
-function CreateResolveFunction(promise) {
-    let resolve = new_built_in_Promise_Resolve_Function();
-    set_slot(resolve, "[[Promise]]", promise);
-    return resolve;
 }
 
 function new_built_in_Promise_Resolve_Function() {
@@ -75,21 +74,57 @@ function new_built_in_Promise_Resolve_Function() {
         assert(Type(get_slot(F, "[[Promise]]")) === "Object");
         let promise = get_slot(F, "[[Promise]]");
 
-        if (get_slot(promise, "[[PromiseStatus]]") !== "unresolved") {
+        let alreadyResolved = get_slot(F, "[[AlreadyResolved]]");
+        if (alreadyResolved["[[value]]"] === true) {
             return undefined;
         }
+        alreadyResolved["[[value]]"] = true;
 
-        let reactions = get_slot(promise, "[[PromiseResolveReactions]]");
-        set_slot(promise, "[[PromiseResult]]", resolution);
-        set_slot(promise, "[[PromiseResolveReactions]]", undefined);
-        set_slot(promise, "[[PromiseRejectReactions]]", undefined);
-        set_slot(promise, "[[PromiseStatus]]", "has-resolution");
-        return TriggerPromiseReactions(reactions, resolution);
+        if (SameValue(resolution, promise) === true) {
+            let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
+            return RejectPromise(promise, selfResolutionError);
+        }
+
+        if (Type(resolution) !== "Object") {
+            return FulfillPromise(promise, resolution);
+        }
+
+        let then;
+        try {
+            then = Get(resolution, "then");
+        } catch (thenE) {
+            return RejectPromise(promise, thenE);
+        }
+
+        if (IsCallable(then) === false) {
+            return FulfillPromise(promise, resolution);
+        }
+
+        let resolvingFunctions = CreateResolvingFunctions(promise);
+
+        try {
+            then.call(resolution, resolvingFunctions["[[Resolve]]"], resolvingFunctions["[[Reject]]"]);
+        } catch (thenCallResultE) {
+            return resolvingFunctions["[[Reject]]"].call(undefined, thenCallResultE);
+        }
+
+        return undefined;
     };
 
-    make_slots(F, ["[[Promise]]"]);
+    make_slots(F, ["[[Promise]]", "[[AlreadyResolved]]"]);
 
     return F;
+}
+
+function FulfillPromise(promise, value) {
+    assert(get_slot(promise, "[[PromiseState]]") === "pending");
+
+    let reactions = get_slot(promise, "[[PromiseFulfillReactions]]");
+    set_slot(promise, "[[PromiseResult]]", value);
+    set_slot(promise, "[[PromiseFulfillReactions]]", undefined);
+    set_slot(promise, "[[PromiseRejectReactions]]", undefined);
+    set_slot(promise, "[[PromiseState]]", "fulfilled");
+    return TriggerPromiseReactions(reactions, value);
 }
 
 function NewPromiseCapability(C) {
@@ -153,16 +188,27 @@ function new_built_in_GetCapabilitiesExecutor_Function() {
     return F;
 }
 
+function RejectPromise(promise, reason) {
+    assert(get_slot(promise, "[[PromiseState]]") === "pending");
+
+    let reactions = get_slot(promise, "[[PromiseRejectReactions]]");
+    set_slot(promise, "[[PromiseResult]]", reason);
+    set_slot(promise, "[[PromiseFulfillReactions]]", undefined);
+    set_slot(promise, "[[PromiseRejectReactions]]", undefined);
+    set_slot(promise, "[[PromiseState]]", "rejected");
+    return TriggerPromiseReactions(reactions, reason);
+}
+
 function IsPromise(x) {
     if (Type(x) !== "Object") {
         return false;
     }
 
-    if (!has_slot(x, "[[PromiseStatus]]")) {
+    if (!has_slot(x, "[[PromiseState]]")) {
         return false;
     }
 
-    if (get_slot(x, "[[PromiseStatus]]") === undefined) {
+    if (get_slot(x, "[[PromiseState]]") === undefined) {
         return false;
     }
 
@@ -177,32 +223,6 @@ function TriggerPromiseReactions(reactions, argument) {
     return undefined;
 }
 
-function UpdateDeferredFromPotentialThenable(x, promiseCapability) {
-    if (Type(x) !== "Object") {
-        return "not a thenable";
-    }
-
-    let then;
-    try {
-        then = Get(x, "then");
-    } catch (thenE) {
-        promiseCapability["[[Reject]]"].call(undefined, thenE);
-        return null;
-    }
-
-    if (IsCallable(then) === false) {
-        return "not a thenable";
-    }
-
-    try {
-        then.call(x, promiseCapability["[[Resolve]]"], promiseCapability["[[Reject]]"]);
-    } catch (thenCallResultE) {
-        promiseCapability["[[Reject]]"].call(undefined, thenCallResultE);
-    }
-
-    return null;
-}
-
 // ## Promise Tasks
 
 function PromiseReactionTask(reaction, argument) {
@@ -215,18 +235,12 @@ function PromiseReactionTask(reaction, argument) {
     try {
         handlerResult = handler.call(undefined, argument);
     } catch (handlerResultE) {
-        return promiseCapability["[[Reject]]"].call(undefined, handlerResultE);
+        let status = promiseCapability["[[Reject]]"].call(undefined, handlerResultE);
+        return status;
     }
 
-    if (SameValue(handlerResult, promiseCapability["[[Promise]]"]) === true) {
-        let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
-        return promiseCapability["[[Reject]]"].call(undefined, selfResolutionError);
-    }
-
-    let updateResult = UpdateDeferredFromPotentialThenable(handlerResult, promiseCapability);
-    if (updateResult === "not a thenable") {
-        return promiseCapability["[[Resolve]]"].call(undefined, handlerResult);
-    }
+    let status = promiseCapability["[[Resolve]]"].call(undefined, handlerResult);
+    return status;
 }
 
 // ## The Promise Constructor
@@ -240,11 +254,11 @@ function Promise(executor) {
         throw new TypeError("Promise constructor called on non-object");
     }
 
-    if (!has_slot(promise, "[[PromiseStatus]]")) {
+    if (!has_slot(promise, "[[PromiseState]]")) {
         throw new TypeError("Promise constructor called on an object not initialized as a promise.");
     }
 
-    if (get_slot(promise, "[[PromiseStatus]]") !== undefined) {
+    if (get_slot(promise, "[[PromiseState]]") !== undefined) {
         throw new TypeError("Promise constructor called on a promise that has already been constructed.");
     }
 
@@ -256,18 +270,17 @@ function Promise(executor) {
 }
 
 function InitialisePromise(promise, executor) {
-    assert(get_slot(promise, "[[PromiseStatus]]") === undefined);
+    assert(get_slot(promise, "[[PromiseState]]") === undefined);
     assert(IsCallable(executor) === true);
 
-    set_slot(promise, "[[PromiseStatus]]", "unresolved");
-    set_slot(promise, "[[PromiseResolveReactions]]", []);
+    set_slot(promise, "[[PromiseState]]", "pending");
+    set_slot(promise, "[[PromiseFulfillReactions]]", []);
     set_slot(promise, "[[PromiseRejectReactions]]", []);
 
-    let resolve = CreateResolveFunction(promise);
-    let reject = CreateRejectFunction(promise);
+    let resolvingFunctions = CreateResolvingFunctions(promise);
 
     try {
-        executor.call(undefined, resolve, reject);
+        executor.call(undefined, resolvingFunctions["[[Resolve]]"], resolvingFunctions["[[Reject]]"]);
     } catch (completionE) {
         reject.call(undefined, completionE);
     }
@@ -450,13 +463,13 @@ Object.defineProperty(Promise, atAtCreate, {
 });
 
 function AllocatePromise(constructor) {
-        let obj = OrdinaryCreateFromConstructor(constructor, "%PromisePrototype%",
-                                                ["[[PromiseStatus]]", "[[PromiseConstructor]]", "[[PromiseResult]]",
-                                                "[[PromiseResolveReactions]]", "[[PromiseRejectReactions]]"]);
+    let obj = OrdinaryCreateFromConstructor(constructor, "%PromisePrototype%",
+                                            ["[[PromiseState]]", "[[PromiseConstructor]]", "[[PromiseResult]]",
+                                             "[[PromiseFulfillReactions]]", "[[PromiseRejectReactions]]"]);
 
-        set_slot(obj, "[[PromiseConstructor]]", constructor);
+    set_slot(obj, "[[PromiseConstructor]]", constructor);
 
-        return obj;
+    return obj;
 }
 
 // ## Properties of the Promise Prototype Object
@@ -475,13 +488,6 @@ define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, 
     let C = Get(promise, "constructor");
     let promiseCapability = NewPromiseCapability(C);
 
-    let rejectionHandler;
-    if (IsCallable(onRejected) === true) {
-        rejectionHandler = onRejected;
-    } else {
-        rejectionHandler = new_built_in_ThrowerFunction();
-    }
-
     let fulfillmentHandler;
     if (IsCallable(onFulfilled) === true) {
         fulfillmentHandler = onFulfilled;
@@ -489,21 +495,23 @@ define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, 
         fulfillmentHandler = new_built_in_IdentityFunction();
     }
 
-    let resolutionHandler = new_built_in_PromiseResolutionHandlerFunction();
-    set_slot(resolutionHandler, "[[Promise]]", promise);
-    set_slot(resolutionHandler, "[[FulfillmentHandler]]", fulfillmentHandler);
-    set_slot(resolutionHandler, "[[RejectionHandler]]", rejectionHandler);
+    let rejectionHandler;
+    if (IsCallable(onRejected) === true) {
+        rejectionHandler = onRejected;
+    } else {
+        rejectionHandler = new_built_in_ThrowerFunction();
+    }
 
-    let resolveReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": resolutionHandler };
+    let fulfillReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": fulfillmentHandler };
     let rejectReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": rejectionHandler };
 
-    if (get_slot(promise, "[[PromiseStatus]]") === "unresolved") {
-        get_slot(promise, "[[PromiseResolveReactions]]").push(resolveReaction);
+    if (get_slot(promise, "[[PromiseState]]") === "pending") {
+        get_slot(promise, "[[PromiseFulfillReactions]]").push(fulfillReaction);
         get_slot(promise, "[[PromiseRejectReactions]]").push(rejectReaction);
-    } else if (get_slot(promise, "[[PromiseStatus]]") === "has-resolution") {
-        let resolution = get_slot(promise, "[[PromiseResult]]");
-        EnqueueTask("PromiseTasks", PromiseReactionTask, [resolveReaction, resolution]);
-    } else if (get_slot(promise, "[[PromiseStatus]]") === "has-rejection") {
+    } else if (get_slot(promise, "[[PromiseState]]") === "fulfilled") {
+        let value = get_slot(promise, "[[PromiseResult]]");
+        EnqueueTask("PromiseTasks", PromiseReactionTask, [fulfillReaction, value]);
+    } else if (get_slot(promise, "[[PromiseState]]") === "rejected") {
         let reason = get_slot(promise, "[[PromiseResult]]");
         EnqueueTask("PromiseTasks", PromiseReactionTask, [rejectReaction, reason]);
     }
@@ -515,31 +523,6 @@ function new_built_in_IdentityFunction() {
     return function (x) {
         return x;
     };
-}
-
-function new_built_in_PromiseResolutionHandlerFunction() {
-    let F = function (x) {
-        let promise = get_slot(F, "[[Promise]]");
-        let fulfillmentHandler = get_slot(F, "[[FulfillmentHandler]]");
-        let rejectionHandler = get_slot(F, "[[RejectionHandler]]");
-
-        if (SameValue(x, promise) === true) {
-            let selfResolutionError = new TypeError("Tried to resolve a promise with itself!");
-            return rejectionHandler.call(undefined, selfResolutionError);
-        }
-
-        let C = get_slot(promise, "[[PromiseConstructor]]");
-        let promiseCapability = NewPromiseCapability(C);
-        let updateResult = UpdateDeferredFromPotentialThenable(x, promiseCapability);
-        if (updateResult !== "not a thenable") {
-            return Invoke(promiseCapability["[[Promise]]"], "then", [fulfillmentHandler, rejectionHandler]);
-        }
-        return fulfillmentHandler.call(undefined, x);
-    };
-
-    make_slots(F, ["[[Promise]]", "[[FulfillmentHandler]]", "[[RejectionHandler]]"]);
-
-    return F;
 }
 
 function new_built_in_ThrowerFunction() {

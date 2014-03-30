@@ -97,70 +97,86 @@ PromiseReaction records have the fields listed in this table.
     </tbody>
 </table>
 
+### CreateResolvingFunctions ( promise )
 
-### CreateRejectFunction ( promise )
+When CreateResolvingFunctions is performed with argument _promise_, the following steps are taken:
 
-When CreateRejectFunction is performed with argument _promise_, the following steps are taken:
-
+1. Let _alreadyResolved_ be a new Record { [[value]]: **false** }.
+1. Let _resolve_ be a new built-in function object as defined in Promise Resolve Functions.
+1. Set the [[Promise]] internal slot of _resolve_ to _promise_.
+1. Set the [[AlreadyResolved]] internal slot of _resolve_ to _alreadyResolved_.
 1. Let _reject_ be a new built-in function object as defined in Promise Reject Functions.
 1. Set the [[Promise]] internal slot of _reject_ to _promise_.
-1. Return _reject_.
+1. Set the [[AlreadyResolved]] internal slot of _reject_ to _alreadyResolved_.
+1. Return a new Record { [[Resolve]]: _resolve_, [[Reject]]: _reject_ }.
 
 #### Promise Reject Functions
 
-A promise reject function is an anonymous built-in function that has a [[Promise]] internal slot.
+A promise reject function is an anonymous built-in function that has [[Promise]] and [[AlreadyResolved]] internal slots.
 
 When a promise reject function _F_ is called with argument _reason_, the following steps are taken:
 
 1. Assert: _F_ has a [[Promise]] internal slot whose value is an Object.
 1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, then return **undefined**.
-1. Let _reactions_ be the value of _promise_'s [[PromiseRejectReactions]] internal slot.
-1. Set the value of _promise_'s [[PromiseResult]] internal slot to _reason_.
-1. Set the value of _promise_'s [[PromiseResolveReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[PromiseRejectReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-rejection"`.
-1. Return TriggerPromiseReactions(_reactions_, _reason_).
-
-### CreateResolveFunction ( promise )
-
-When CreateResolveFunction is performed with argument _promise_, the following steps are taken:
-
-1. Let _resolve_ be a new built-in function object as defined in Promise Resolve Functions.
-1. Set the [[Promise]] internal slot of _resolve_ to _promise_.
-1. Return _resolve_.
+1. Let _alreadyResolved_ by the value of _F_'s [[AlreadyResolved]] internal slot.
+1. If _alreadyResolved_.[[value]] is **true**, then return **undefined**.
+1. Set _alreadyResolved_.[[value]] to **true**.
+1. Return RejectPromise(_promise_, _reason_).
 
 #### Promise Resolve Functions
 
-A promise resolve function is an anonymous built-in function that has a [[Promise]] internal slot.
+A promise resolve function is an anonymous built-in function that has [[Promise]] and [[AlreadyResolved]] internal slots.
 
 When a promise resolve function _F_ is called with argument _resolution_, the following steps are taken:
 
 1. Assert: _F_ has a [[Promise]] internal slot whose value is an Object.
 1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. If the value of _promise_'s internal slot [[PromiseStatus]] is not `"unresolved"`, then return **undefined**.
-1. Let _reactions_ be the value of _promise_'s [[PromiseResolveReactions]] internal slot.
-1. Set the value of _promise_'s [[PromiseResult]] internal slot to _resolution_.
-1. Set the value of _promise_'s [[PromiseResolveReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[PromiseRejectReactions]] internal slot to **undefined**.
-1. Set the value of _promise_'s [[PromiseStatus]] internal slot to `"has-resolution"`.
-1. Return TriggerPromiseReactions(_reactions_, _resolution_).
+1. Let _alreadyResolved_ by the value of _F_'s [[AlreadyResolved]] internal slot.
+1. If _alreadyResolved_.[[value]] is **true**, then return **undefined**.
+1. Set _alreadyResolved_.[[value]] to **true**.
+1. If SameValue(_resolution_, _promise_) is **true**, then
+    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
+    1. Return RejectPromise(_promise_, _selfResolutionError_).
+1. If Type(_resolution_) is not Object, then
+    1. Return FulfillPromise(_promise_, _resolution_).
+1. Let _then_ be Get(_resolution_, `"then"`).
+1. If _then_ is an abrupt completion, then
+    1. Return RejectPromise(_promise_, _then_.[[value]]).
+1. Let _then_ be _then_.[[value]].
+1. If IsCallable(_then_) is **false**, then
+    1. Return FulfillPromise(_promise_, _resolution_).
+1. Let _resolvingFunctions_ be CreateResolvingFunctions(_promise_).
+1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _resolution_ as _thisArgument_ and (_resolvingFunctions_.[[Resolve]], _resolvingFunctions_.[[Reject]]) as _argumentsList_.
+1. If _thenCallResult_ is an abrupt completion,
+    1. Return the result of calling the [[Call]] internal method of _resolvingFunctions_.[[Reject]] passing **undefined** as _thisArgument_ and (_thenCallResult_.[[value]]) as _argumentsList_.
+1. Return **undefined**.
 
-###  NewPromiseCapability ( C )
+### FulfillPromise ( promise, value )
+
+1. Assert: the value of _promise_'s [[PromiseState]] internal slot is `"pending"`.
+1. Let _reactions_ be the value of _promise_'s [[PromiseFulfillReactions]] internal slot.
+1. Set the value of _promise_'s [[PromiseResult]] internal slot to _value_.
+1. Set the value of _promise_'s [[PromiseFulfillReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseRejectReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseState]] internal slot to `"fulfilled"`.
+1. Return TriggerPromiseReactions(_reactions_, _value_).
+
+### NewPromiseCapability ( C )
 
 The abstract operation NewPromiseCapability takes a constructor function, and attempts to use that constructor function in the fashion of the built-in `Promise` constructor to create a Promise object and extract its resolve and reject functions. The promise plus the resolve and reject functions are used to initialise a new PromiseCapability record which is returned as the value of this abstract operation. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed executor argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
 
 1. If IsConstructor(_C_) is **false**, throw a **TypeError**.
 1. Assert: _C_ is a constructor function that supports the parameter conventions of the `Promise` constructor.
 1. Let _promise_ be CreateFromConstructor(_C_).
-1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
 1. ReturnIfAbrupt(_promise_).
+1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
 1. Return CreatePromiseCapabilityRecord(_promise_, _C_).
 
 NOTE: This abstract operation supports Promise subclassing, as it is generic on any constructor that calls a passed executor function argument in the same way as the Promise constructor. It is used to generalize static methods of the Promise constructor to any subclass.
 
 #### CreatePromiseCapabilityRecord ( promise, constructor )
 
+1. Assert: _promise_ is an uninitialized object created as if by invoking @@create on _constructor_.
 1. Let _promiseCapability_ be a new PromiseCapability { [[Promise]]: _promise_, [[Resolve]]: **undefined**, [[Reject]]: **undefined** }.
 1. Let _executor_ be a new built-in function object as defined in GetCapabilitiesExecutor Functions.
 1. Set the [[Capability]] internal slot of _executor_ to _promiseCapability_.
@@ -185,13 +201,23 @@ When a GetCapabilitiesExecutor function _F_ is called with arguments _resolve_ a
 1. Set _promiseCapability_.[[Reject]] to _reject_.
 1. Return **undefined**.
 
+### RejectPromise ( promise, reason )
+
+1. Assert: the value of _promise_'s [[PromiseState]] internal slot is `"pending"`.
+1. Let _reactions_ be the value of _promise_'s [[PromiseRejectReactions]] internal slot.
+1. Set the value of _promise_'s [[PromiseResult]] internal slot to _reason_.
+1. Set the value of _promise_'s [[PromiseFulfillReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseRejectReactions]] internal slot to **undefined**.
+1. Set the value of _promise_'s [[PromiseState]] internal slot to `"rejected"`.
+1. Return TriggerPromiseReactions(_reactions_, _reason_).
+
 ### IsPromise ( x )
 
 The abstract operation IsPromise checks for the promise brand on an object.
 
 1. If Type(_x_) is not Object, return **false**.
-1. If _x_ does not have a [[PromiseStatus]] internal slot, return **false**.
-1. If the value of _x_'s [[PromiseStatus]] internal slot is **undefined**, return **false**.
+1. If _x_ does not have a [[PromiseState]] internal slot, return **false**.
+1. If the value of _x_'s [[PromiseState]] internal slot is **undefined**, return **false**.
 1. Return **true**.
 
 ### TriggerPromiseReactions ( reactions, argument )
@@ -201,24 +227,6 @@ The abstract operation TriggerPromiseReactions takes a collection of functions t
 1. Repeat for each _reaction_ in _reactions_, in original insertion order
     1. Perform EnqueueTask(`"PromiseTasks"`, PromiseReactionTask, (_reaction_, _argument_)).
 1. Return **undefined**.
-
-### UpdatePromiseFromPotentialThenable ( x, promiseCapability )
-
-The abstract operation UpdateDeferredFromPotentialThenable takes a value _x_ and tests if it is a thenable. If so, it tries to use _x_'s `then` method to resolve the promised accessed through _promiseCapability_. Otherwise, it returns `"not a thenable"`.
-
-1. If Type(_x_) is not Object, return `"not a thenable"`.
-1. Let _then_ be Get(_x_, `"then"`).
-1. If _then_ is an abrupt completion,
-    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] with **undefined** as _thisArgument_ and (_then_.[[value]]) as _argumentsList_.
-    1. ReturnIfAbrupt(_rejectResult_).
-    1. Return **null**.
-1. Let _then_ be _then_.[[value]].
-1. If IsCallable(_then_) is **false**, return `"not a thenable"`.
-1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _x_ as _thisArgument_ and (_promiseCapability_.[[Resolve]], _promiseCapability_.[[Reject]]) as _argumentsList_.
-1. If _thenCallResult_ is an abrupt completion,
-    1. Let _rejectResult_ be the result of calling the [[Call]] internal method of _capability_.[[Reject]] with **undefined** as _thisArgument_ and (_thenCallResult_.[[value]]) as _argumentsList_.
-    1. ReturnIfAbrupt(_rejectResult_).
-1. Return **null**.
 
 ## Promise Tasks
 
@@ -234,15 +242,7 @@ The task PromiseReactionTask with parameters _reaction_ and _argument_ applies t
     1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] passing **undefined** as _thisArgument_ and (_handlerResult_.[[value]]) as _argumentsList_.
     1. NextTask _status_.
 1. Let _handlerResult_ be _handlerResult_.[[value]].
-1. If SameValue(_handlerResult_, _promiseCapability_.[[Promise]]) is **true**, then
-    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
-    1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] passing **undefined** as _thisArgument_ and (_selfResolutionError_) as _argumentsList_
-    1. NextTask _status_.
-1. Let _status_ be UpdatePromiseFromPotentialThenable(_handlerResult_, _promiseCapability_).
-1. If _status_ is an abrupt completion, then NextTask _status_.
-1. Let _updateResult_ be _status_.[[value]].
-1. If _updateResult_ is `"not a thenable"`,
-    1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] passing **undefined** as _thisArgument_ and (_handlerResult_) as _argumentsList_.
+1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] passing **undefined** as _thisArgument_ and (_handlerResult_) as _argumentsList_.
 1. NextTask _status_.
 
 ## The Promise Constructor
@@ -257,8 +257,8 @@ When the `Promise` function is called with argument _executor_ the following ste
 
 1. Let _promise_ be the **this** value.
 1. If Type(_promise_) is not Object, then throw a **TypeError** exception.
-1. If _promise_ does not have a [[PromiseStatus]] internal slot, then throw a **TypeError** exception.
-1. If _promise_'s [[PromiseStatus]] internal slot is not **undefined**, then throw a **TypeError** exception.
+1. If _promise_ does not have a [[PromiseState]] internal slot, then throw a **TypeError** exception.
+1. If _promise_'s [[PromiseState]] internal slot is not **undefined**, then throw a **TypeError** exception.
 1. If IsCallable(_executor_) is **false**, then throw a **TypeError** exception.
 1. Return InitialisePromise(_promise_, _executor_).
 
@@ -276,16 +276,15 @@ The resolve and reject functions passed to an _executor_ function by the Promise
 
 The abstract operation InitialisePromise initialises a newly allocated _promise_ object using an _executor_ function.
 
-1. Assert: _promise_ has a [[PromiseStatus]] internal slot and its value is **undefined**.
+1. Assert: _promise_ has a [[PromiseState]] internal slot and its value is **undefined**.
 1. Assert: IsCallable(_executor_) is **true**.
-1. Set _promise_'s [[PromiseStatus]] internal slot to `"unresolved"`.
-1. Set _promise_'s [[PromiseResolveReactions]] internal slot to a new empty List.
+1. Set _promise_'s [[PromiseState]] internal slot to `"pending"`.
+1. Set _promise_'s [[PromiseFulfillReactions]] internal slot to a new empty List.
 1. Set _promise_'s [[PromiseRejectReactions]] internal slot to a new empty List.
-1. Let _resolve_ be CreateResolveFunction(_promise_).
-1. Let _reject_ be CreateRejectFunction(_promise_).
-1. Let _completion_ be the result of calling the [[Call]] internal method of _executor_ with **undefined** as _thisArgument_ and (_resolve_, _reject_) as _argumentsList_.
+1. Let _resolvingFunctions_ be CreateResolvingFunctions(_promise_).
+1. Let _completion_ be the result of calling the [[Call]] internal method of _executor_ with **undefined** as _thisArgument_ and (_resolvingFunctions_.[[Resolve]], _resolvingFunctions_.[[Reject]]) as _argumentsList_.
 1. If _completion_ is an abrupt completion, then
-    1. Let _status_ be the result of calling the [[Call]] internal method of _reject_ with **undefined** as _thisArgument_ and (_completion_.[[value]]) as _argumentsList_.
+    1. Let _status_ be the result of calling the [[Call]] internal method of _resolvingFunctions_.[[Reject]] with **undefined** as _thisArgument_ and (_completion_.[[value]]) as _argumentsList_.
     1. ReturnIfAbrupt(_status_).
 1. Return _promise_.
 
@@ -436,13 +435,13 @@ This property has the attributes { [[Writable]]: **false**, [[Enumerable]]: **fa
 
 The abstract operation AllocatePromise allocates a new promise object using the _constructor_ argument.
 
-1. Let _obj_ be OrdinaryCreateFromConstructor(_constructor_, `"%PromisePrototype%"`, ([[PromiseStatus]], [[PromiseConstructor]], [[PromiseResult]], [[PromiseResolveReactions]], [[PromiseRejectReactions]])).
+1. Let _obj_ be OrdinaryCreateFromConstructor(_constructor_, `"%PromisePrototype%"`, ([[PromiseState]], [[PromiseConstructor]], [[PromiseResult]], [[PromiseFulfillReactions]], [[PromiseRejectReactions]])).
 1. Set _obj_'s [[PromiseConstructor]] internal slot to _constructor_.
 1. Return _obj_.
 
 ## Properties of the Promise Prototype Object
 
-The value of the [[Prototype]] internal slot of the Promise prototype object is the standard built-in Object prototype object. The Promise prototype object is an ordinary object. It does not have a [[PromiseStatus]] internal slot or any of the other internal slots of Promise instances.
+The value of the [[Prototype]] internal slot of the Promise prototype object is the standard built-in Object prototype object. The Promise prototype object is an ordinary object. It does not have a [[PromiseState]] internal slot or any of the other internal slots of Promise instances.
 
 ### Promise.prototype.catch ( onRejected )
 
@@ -465,27 +464,23 @@ When the `then` method is called with arguments _onFulfilled_ and _onRejected_ t
 1. ReturnIfAbrupt(_C_).
 1. Let _promiseCapability_ be NewPromiseCapability(_C_).
 1. ReturnIfAbrupt(_promiseCapability_).
-1. If IsCallable(_onRejected_) is **true**, then
-    1. Let _rejectionHandler_ be _onRejected_.
-1. Else,
-    1. Let _rejectionHandler_ be a new Thrower Function.
 1. If IsCallable(_onFulfilled_) is **true**, then
     1. Let _fulfillmentHandler_ be _onFulfilled_.
 1. Else,
     1. Let _fulfillmentHandler_ be a new Identity Function.
-1. Let _resolutionHandler_ be a new Promise Resolution Handler Function.
-1. Set the [[Promise]] internal slot of _resolutionHandler_ to _promise_.
-1. Set the [[FulfillmentHandler]] internal slot of _resolutionHandler_ to _fulfillmentHandler_.
-1. Set the [[RejectionHandler]] internal slot of _resolutionHandler_ to _rejectionHandler_.
-1. Let _resolveReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _resolutionHandler_ }.
+1. If IsCallable(_onRejected_) is **true**, then
+    1. Let _rejectionHandler_ be _onRejected_.
+1. Else,
+    1. Let _rejectionHandler_ be a new Thrower Function.
+1. Let _fulfillReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _fulfillmentHandler_ }.
 1. Let _rejectReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _rejectionHandler_ }.
-1. If the value of _promise_'s [[PromiseStatus]] internal slot is `"unresolved"`,
-    1. Append _resolveReaction_ as the last element of the List that is the value of _promise_'s [[PromiseResolveReactions]] internal slot.
+1. If the value of _promise_'s [[PromiseState]] internal slot is `"pending"`,
+    1. Append _fulfillReaction_ as the last element of the List that is the value of _promise_'s [[PromiseFulfillReactions]] internal slot.
     1. Append _rejectReaction_ as the last element of the List that is the value of _promise_'s [[PromiseRejectReactions]] internal slot.
-1. Else if the value of _promise_'s [[PromiseStatus]] internal slot is `"has-resolution"`,
-    1. Let _resolution_ be the value of _promise_'s [[PromiseResult]] internal slot.
-    1. Call EnqueueTask(`"PromiseTasks"`, PromiseReactionTask, (_resolveReaction_, _resolution_)).
-1. Else if the value of _promise_'s [[PromiseStatus]] internal slot is `"has-rejection"`,
+1. Else if the value of _promise_'s [[PromiseState]] internal slot is `"fulfilled"`,
+    1. Let _value_ be the value of _promise_'s [[PromiseResult]] internal slot.
+    1. Call EnqueueTask(`"PromiseTasks"`, PromiseReactionTask, (_fulfillReaction_, _value_)).
+1. Else if the value of _promise_'s [[PromiseState]] internal slot is `"rejected"`,
     1. Let _reason_ be the value of _promise_'s [[PromiseResult]] internal slot.
     1. Call EnqueueTask(`"PromiseTasks"`, (_rejectReaction_, _reason_)).
 1. Return _promiseCapability_.[[Promise]].
@@ -495,29 +490,6 @@ When the `then` method is called with arguments _onFulfilled_ and _onRejected_ t
 An identify function is an anonymous built-in function that when called with argument _x_, performs the following steps:
 
 1. Return _x_.
-
-#### Promise Resolution Handler Functions
-
-A promise resolution handler function is an anonymous built-in function that has the ability to handle a promise being resolved, by "unwrapping" any incoming values until they are no longer promises or thenables and can be passed to the appropriate fulfillment handler.
-
-Each promise resolution handler function has [[Promise]], [[FulfillmentHandler]], and [[RejectionHandler]] internal slots.
-
-When a promise resolution handler function _F_ is called with argument _x_, the following steps are taken:
-
-1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. Let _fulfillmentHandler_ be the value of _F_'s [[FulfillmentHandler]] internal slot.
-1. Let _rejectionHandler_ be the value of _F_'s [[RejectionHandler]] internal slot.
-1. If SameValue(_x_, _promise_) is **true**, then
-    1. Let _selfResolutionError_ be a newly-created **TypeError** object.
-    1. Return the result of calling the [[Call]] internal method of _rejectionHandler_ with **undefined** as _thisArgument_ and (_selfResolutionError_) as _argumentsList_.
-1. Let _C_ be the value of _promise_'s [[PromiseConstructor]] internal slot.
-1. Let _promiseCapability_ be NewPromiseCapability(_C_).
-1. ReturnIfAbrupt(_promiseCapability_).
-1. Let _updateResult_ be UpdateDeferredFromPotentialThenable(_x_, _promiseCapability_).
-1. ReturnIfAbrupt(_updateResult_).
-1. If _updateResult_ is not `"not a thenable"`, then
-    1. Return Invoke(_promiseCapability_.[[Promise]], `"then"`, (_fulfillmentHandler_, _rejectionHandler_)).
-1. Return the result of calling the [[Call]] internal method of _fulfillmentHandler_ with **undefined** as _thisArgument_ and (_x_) as _argumentsList_.
 
 #### Thrower Functions
 
@@ -545,8 +517,8 @@ Promise instances are ordinary objects that inherit properties from the Promise 
     </thead>
     <tbody>
          <tr>
-            <td>[[PromiseStatus]]</td>
-            <td>A string value that governs how a promise will react to incoming calls to its then method. The possible values are: <b>undefined</b>, <code>"unresolved"</code>, <code>"has-resolution"</code>, and <code>"has-rejection"</code>.</td>
+            <td>[[PromiseState]]</td>
+            <td>A string value that governs how a promise will react to incoming calls to its <code>then</code> method. The possible values are: <b>undefined</b>, <code>"pending"</code>, <code>"fulfilled"</code>, and <code>"rejected"</code>.</td>
          </tr>
          <tr>
             <td>[[PromiseConstructor]]</td>
@@ -554,15 +526,15 @@ Promise instances are ordinary objects that inherit properties from the Promise 
          </tr>
          <tr>
             <td>[[PromiseResult]]</td>
-            <td>The value with which the promise has been resolved or rejected, if any. Only meaningful if [[PromiseStatus]] is not <code>"unresolved"</code>.</td>
+            <td>The value with which the promise has been fulfilled or rejected, if any. Only meaningful if [[PromiseState]] is not <code>"pending"</code>.</td>
          </tr>
          <tr>
-            <td>[[PromiseResolveReactions]]</td>
-            <td>A List of PromiseReaction records to be processed when/if the promise transitions from being unresolved to having a resolution.</td>
+            <td>[[PromiseFulfillReactions]]</td>
+            <td>A List of PromiseReaction records to be processed when/if the promise transitions from the <code>"pending"</code> state to the <code>"fulfilled"</code> state.</td>
          </tr>
          <tr>
             <td>[[PromiseRejectReactions]]</td>
-            <td>A List of PromiseReaction records to be processed when/if the promise transitions from being unresolved to having a rejection.</td>
+            <td>A List of PromiseReaction records to be processed when/if the promise transitions from the <code>"pending"</code> state to the <code>"rejected"</code> state.</td>
          </tr>
     </tbody>
 </table>

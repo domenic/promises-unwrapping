@@ -21,4 +21,27 @@ describe("Evil promises should not be able to break invariants", function () {
         })
         .then(done, done);
     });
+
+    specify("If resolved to a thenable which calls back with different values each time", function (done) {
+        var thenable = {
+            i: 0,
+            then: function (f) {
+                f(this.i++);
+            }
+        };
+        var p = Promise.resolve(thenable);
+
+        p.then(function (value) {
+            assert.strictEqual(value, 0);
+
+            p.then(function (value) {
+                assert.strictEqual(value, 0);
+
+                p.then(function (value) {
+                    assert.strictEqual(value, 0);
+                    done();
+                });
+            });
+        });
+    });
 });

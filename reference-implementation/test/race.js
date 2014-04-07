@@ -30,7 +30,7 @@ describe("Promise.race", function () {
         );
     });
 
-    it("should settle in the same way as the first promise to settle", function () {
+    it("should settle in the same way as the first promise to settle", function (done) {
         var iterable = iterableFromArray([delayPromise(1, 1000), delayPromise(2, 200), delayPromise(3, 500)]);
 
         Promise.race(iterable).then(function (value) {

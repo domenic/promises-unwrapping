@@ -91,7 +91,7 @@ PromiseReaction records have the fields listed in this table.
         </tr>
         <tr>
             <td>[[Handler]]</td>
-            <td>A function object, or `"identity"`, or `"thrower"`</td>
+            <td>A function object, or <code>"identity"</code>, or <code>"thrower"</code></td>
             <td>The function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise, if such a function was given; or one of the default behaviors, if not.</td>
         </tr>
     </tbody>

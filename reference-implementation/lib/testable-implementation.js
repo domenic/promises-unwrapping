@@ -233,7 +233,14 @@ function PromiseReactionTask(reaction, argument) {
 
     let handlerResult;
     try {
-        handlerResult = handler.call(undefined, argument);
+        if (handler === "identity") {
+            handlerResult = argument;
+        } else if (handler === "thrower") {
+            throw argument;
+        } else {
+            assert(IsCallable(handler) === true);
+            handlerResult = handler.call(undefined, argument);
+        }
     } catch (handlerResultE) {
         let status = promiseCapability["[[Reject]]"].call(undefined, handlerResultE);
         return status;
@@ -492,14 +499,14 @@ define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, 
     if (IsCallable(onFulfilled) === true) {
         fulfillmentHandler = onFulfilled;
     } else {
-        fulfillmentHandler = new_built_in_IdentityFunction();
+        fulfillmentHandler = "identity";
     }
 
     let rejectionHandler;
     if (IsCallable(onRejected) === true) {
         rejectionHandler = onRejected;
     } else {
-        rejectionHandler = new_built_in_ThrowerFunction();
+        rejectionHandler = "thrower";
     }
 
     let fulfillReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": fulfillmentHandler };
@@ -518,18 +525,6 @@ define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, 
 
     return promiseCapability["[[Promise]]"];
 });
-
-function new_built_in_IdentityFunction() {
-    return function (x) {
-        return x;
-    };
-}
-
-function new_built_in_ThrowerFunction() {
-    return function (e) {
-        throw e;
-    };
-}
 
 
 // ## Deltas to Other Areas of the Spec

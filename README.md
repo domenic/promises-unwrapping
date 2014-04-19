@@ -91,8 +91,8 @@ PromiseReaction records have the fields listed in this table.
         </tr>
         <tr>
             <td>[[Handler]]</td>
-            <td>A function object</td>
-            <td>The function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise.</td>
+            <td>A function object, or `"identity"`, or `"thrower"`</td>
+            <td>The function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise, if such a function was given; or one of the default behaviors, if not.</td>
         </tr>
     </tbody>
 </table>
@@ -237,7 +237,13 @@ The task PromiseReactionTask with parameters _reaction_ and _argument_ applies t
 1. Assert: _reaction_ is a PromiseReaction Record.
 1. Let _promiseCapability_ be _reaction_.[[Capabilities]].
 1. Let _handler_ be _reaction_.[[Handler]].
-1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and (_argument_) as _argumentsList_.
+1. If _handler_ is `"identity"`, then
+    1. Let _handlerResult_ be NormalCompletion(_argument_).
+1. Else if _handler_ is `"thrower"`, then
+    1. Let _handlerResult_ be Completion { [[type]]: throw, [[value]]: _argument_, [[target]]: empty }.
+1. Else
+    1. Assert: IsCallable(_handler_) is **true**.
+    1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and (_argument_) as _argumentsList_.
 1. If _handlerResult_ is an abrupt completion, then
     1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] passing **undefined** as _thisArgument_ and (_handlerResult_.[[value]]) as _argumentsList_.
     1. NextTask _status_.
@@ -467,11 +473,11 @@ When the `then` method is called with arguments _onFulfilled_ and _onRejected_ t
 1. If IsCallable(_onFulfilled_) is **true**, then
     1. Let _fulfillmentHandler_ be _onFulfilled_.
 1. Else,
-    1. Let _fulfillmentHandler_ be a new Identity Function.
+    1. Let _fulfillmentHandler_ be `"identity"`.
 1. If IsCallable(_onRejected_) is **true**, then
     1. Let _rejectionHandler_ be _onRejected_.
 1. Else,
-    1. Let _rejectionHandler_ be a new Thrower Function.
+    1. Let _rejectionHandler_ be `"thrower"`.
 1. Let _fulfillReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _fulfillmentHandler_ }.
 1. Let _rejectReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _rejectionHandler_ }.
 1. If the value of _promise_'s [[PromiseState]] internal slot is `"pending"`,
@@ -484,18 +490,6 @@ When the `then` method is called with arguments _onFulfilled_ and _onRejected_ t
     1. Let _reason_ be the value of _promise_'s [[PromiseResult]] internal slot.
     1. Call EnqueueTask(`"PromiseTasks"`, (_rejectReaction_, _reason_)).
 1. Return _promiseCapability_.[[Promise]].
-
-#### Identity Functions
-
-An identify function is an anonymous built-in function that when called with argument _x_, performs the following steps:
-
-1. Return _x_.
-
-#### Thrower Functions
-
-A thrower function is an anonymous built-in function that when called with argument _e_, performs the following steps:
-
-1. Return Completion{[[type]]: throw, [[value]]: e, [[target]]:empty}.
 
 ### Promise.prototype \[ @@toStringTag \]
 

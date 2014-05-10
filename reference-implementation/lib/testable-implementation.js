@@ -100,13 +100,7 @@ function new_built_in_Promise_Resolve_Function() {
             return FulfillPromise(promise, resolution);
         }
 
-        let resolvingFunctions = CreateResolvingFunctions(promise);
-
-        try {
-            then.call(resolution, resolvingFunctions["[[Resolve]]"], resolvingFunctions["[[Reject]]"]);
-        } catch (thenCallResultE) {
-            return resolvingFunctions["[[Reject]]"].call(undefined, thenCallResultE);
-        }
+        EnqueueTask("PromiseTasks", ResolvePromiseViaThenableTask, [promise, resolution, then]);
 
         return undefined;
     };
@@ -248,6 +242,16 @@ function PromiseReactionTask(reaction, argument) {
 
     let status = promiseCapability["[[Resolve]]"].call(undefined, handlerResult);
     return status;
+}
+
+function ResolvePromiseViaThenableTask(promiseToResolve, thenable, then) {
+    let resolvingFunctions = CreateResolvingFunctions(promiseToResolve);
+
+    try {
+        return then.call(thenable, resolvingFunctions["[[Resolve]]"], resolvingFunctions["[[Reject]]"]);
+    } catch (thenCallResultE) {
+        return resolvingFunctions["[[Reject]]"].call(undefined, thenCallResultE);
+    }
 }
 
 // ## The Promise Constructor

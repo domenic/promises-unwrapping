@@ -145,10 +145,7 @@ When a promise resolve function _F_ is called with argument _resolution_, the fo
 1. Let _then_ be _then_.[[value]].
 1. If IsCallable(_then_) is **false**, then
     1. Return FulfillPromise(_promise_, _resolution_).
-1. Let _resolvingFunctions_ be CreateResolvingFunctions(_promise_).
-1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _resolution_ as _thisArgument_ and (_resolvingFunctions_.[[Resolve]], _resolvingFunctions_.[[Reject]]) as _argumentsList_.
-1. If _thenCallResult_ is an abrupt completion,
-    1. Return the result of calling the [[Call]] internal method of _resolvingFunctions_.[[Reject]] passing **undefined** as _thisArgument_ and (_thenCallResult_.[[value]]) as _argumentsList_.
+1. Perform EnqueueTask(`"PromiseTasks"`, ResolvePromiseViaThenableTask, (_promise_, _thenable_, _then_)).
 1. Return **undefined**.
 
 ### FulfillPromise ( promise, value )
@@ -246,6 +243,18 @@ The task PromiseReactionTask with parameters _reaction_ and _argument_ applies t
 1. Let _handlerResult_ be _handlerResult_.[[value]].
 1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Resolve]] passing **undefined** as _thisArgument_ and (_handlerResult_) as _argumentsList_.
 1. NextTask _status_.
+
+### ResolvePromiseViaThenableTask ( promiseToResolve, thenable, then )
+
+The task ResolvePromiseViaThenableTask with parameters _promiseToResolve_, _thenable_, and _then_ uses the supplied thenable and its `then` method to resolve the given promise. This process must take place in an enqueued task to ensure that code inside the `then` method cannot disrupt the invariants of surrounding code.
+
+1. Let _resolvingFunctions_ be CreateResolvingFunctions(_promiseToResolve_).
+1. Let _thenCallResult_ be the result of calling the [[Call]] internal method of _then_ passing _thenable_ as _thisArgument_ and (_resolvingFunctions_.[[Resolve]], _resolvingFunctions_.[[Reject]]) as _argumentsList_.
+1. If _thenCallResult_ is an abrupt completion,
+    1. Let _status_ be the result of calling the [[Call]] internal method of _resolvingFunctions_.[[Reject]] passing **undefined** as _thisArgument_ and (_thenCallResult_.[[value]]) as _argumentsList_.
+    2. NextTask _status_.
+1. NextTask _thenCallResult_.
+
 
 ## The Promise Constructor
 

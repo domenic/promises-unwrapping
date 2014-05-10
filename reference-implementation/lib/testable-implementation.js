@@ -233,9 +233,9 @@ function PromiseReactionTask(reaction, argument) {
 
     let handlerResult;
     try {
-        if (handler === "identity") {
+        if (handler === "Identity") {
             handlerResult = argument;
-        } else if (handler === "thrower") {
+        } else if (handler === "Thrower") {
             throw argument;
         } else {
             assert(IsCallable(handler) === true);
@@ -492,25 +492,19 @@ define_built_in_data_property(Promise.prototype, "then", function (onFulfilled, 
         throw new TypeError("Promise.prototype.then called on a non-promise.");
     }
 
+    if (IsCallable(onFulfilled) === false) {
+        onFulfilled = "Identity";
+    }
+
+    if (IsCallable(onRejected) === false) {
+        onRejected = "Thrower";
+    }
+
     let C = Get(promise, "constructor");
     let promiseCapability = NewPromiseCapability(C);
 
-    let fulfillmentHandler;
-    if (IsCallable(onFulfilled) === true) {
-        fulfillmentHandler = onFulfilled;
-    } else {
-        fulfillmentHandler = "identity";
-    }
-
-    let rejectionHandler;
-    if (IsCallable(onRejected) === true) {
-        rejectionHandler = onRejected;
-    } else {
-        rejectionHandler = "thrower";
-    }
-
-    let fulfillReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": fulfillmentHandler };
-    let rejectReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": rejectionHandler };
+    let fulfillReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": onFulfilled };
+    let rejectReaction = { "[[Capabilities]]": promiseCapability, "[[Handler]]": onRejected };
 
     if (get_slot(promise, "[[PromiseState]]") === "pending") {
         get_slot(promise, "[[PromiseFulfillReactions]]").push(fulfillReaction);

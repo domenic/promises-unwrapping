@@ -91,8 +91,8 @@ PromiseReaction records have the fields listed in this table.
         </tr>
         <tr>
             <td>[[Handler]]</td>
-            <td>A function object, or <code>"identity"</code>, or <code>"thrower"</code></td>
-            <td>The function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise, if such a function was given; or one of the default behaviors, if not.</td>
+            <td>A function object, or a String</td>
+            <td>The function that should be applied to the incoming value, and whose return value will govern what happens to the derived promise. If [[Handled]] is <code>"Identity"</code> it is equivalent to a function that simply returns its first argument. If [[Handler]] is <code>"Thrower"</code> it is equivalent to a function that throws its first argument as an exception.</td>
         </tr>
     </tbody>
 </table>
@@ -118,7 +118,7 @@ When a promise reject function _F_ is called with argument _reason_, the followi
 
 1. Assert: _F_ has a [[Promise]] internal slot whose value is an Object.
 1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. Let _alreadyResolved_ by the value of _F_'s [[AlreadyResolved]] internal slot.
+1. Let _alreadyResolved_ be the value of _F_'s [[AlreadyResolved]] internal slot.
 1. If _alreadyResolved_.[[value]] is **true**, then return **undefined**.
 1. Set _alreadyResolved_.[[value]] to **true**.
 1. Return RejectPromise(_promise_, _reason_).
@@ -131,7 +131,7 @@ When a promise resolve function _F_ is called with argument _resolution_, the fo
 
 1. Assert: _F_ has a [[Promise]] internal slot whose value is an Object.
 1. Let _promise_ be the value of _F_'s [[Promise]] internal slot.
-1. Let _alreadyResolved_ by the value of _F_'s [[AlreadyResolved]] internal slot.
+1. Let _alreadyResolved_ be the value of _F_'s [[AlreadyResolved]] internal slot.
 1. If _alreadyResolved_.[[value]] is **true**, then return **undefined**.
 1. Set _alreadyResolved_.[[value]] to **true**.
 1. If SameValue(_resolution_, _promise_) is **true**, then
@@ -163,7 +163,7 @@ When a promise resolve function _F_ is called with argument _resolution_, the fo
 
 ### NewPromiseCapability ( C )
 
-The abstract operation NewPromiseCapability takes a constructor function, and attempts to use that constructor function in the fashion of the built-in `Promise` constructor to create a Promise object and extract its resolve and reject functions. The promise plus the resolve and reject functions are used to initialise a new PromiseCapability record which is returned as the value of this abstract operation. This is useful to support subclassing, as this operation is generic on any constructor that calls a passed executor argument in the same way as the Promise constructor. We use it to generalize static methods of the Promise constructor to any subclass.
+The abstract operation NewPromiseCapability takes a constructor function, and attempts to use that constructor function in the fashion of the built-in `Promise` constructor to create a Promise object and extract its resolve and reject functions. The promise plus the resolve and reject functions are used to initialise a new PromiseCapability record which is returned as the value of this abstract operation.
 
 1. If IsConstructor(_C_) is **false**, throw a **TypeError**.
 1. Assert: _C_ is a constructor function that supports the parameter conventions of the `Promise` constructor.
@@ -237,13 +237,9 @@ The task PromiseReactionTask with parameters _reaction_ and _argument_ applies t
 1. Assert: _reaction_ is a PromiseReaction Record.
 1. Let _promiseCapability_ be _reaction_.[[Capabilities]].
 1. Let _handler_ be _reaction_.[[Handler]].
-1. If _handler_ is `"identity"`, then
-    1. Let _handlerResult_ be NormalCompletion(_argument_).
-1. Else if _handler_ is `"thrower"`, then
-    1. Let _handlerResult_ be Completion { [[type]]: throw, [[value]]: _argument_, [[target]]: empty }.
-1. Else
-    1. Assert: IsCallable(_handler_) is **true**.
-    1. Let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and (_argument_) as _argumentsList_.
+1. If _handler_ is `"Identity"`, then let _handlerResult_ be NormalCompletion(_argument_).
+1. Else if _handler_ is `"Thrower"`, then let _handlerResult_ be Completion{ [[type]]: throw, [[value]]: _argument_, [[target]]: empty }.
+1. Else, let _handlerResult_ be the result of calling the [[Call]] internal method of _handler_ passing **undefined** as _thisArgument_ and (_argument_) as _argumentsList_.
 1. If _handlerResult_ is an abrupt completion, then
     1. Let _status_ be the result of calling the [[Call]] internal method of _promiseCapability_.[[Reject]] passing **undefined** as _thisArgument_ and (_handlerResult_.[[value]]) as _argumentsList_.
     1. NextTask _status_.
@@ -466,20 +462,16 @@ When the `then` method is called with arguments _onFulfilled_ and _onRejected_ t
 
 1. Let _promise_ be the **this** value.
 1. If IsPromise(_promise_) is **false**, throw a **TypeError** exception.
+1. If IsCallable(_onFulfilled_) is **false**, then
+    1. Let _onFulfilled_ be `"Identity"`.
+1. If IsCallable(_onRejected_) is **false**, then
+    1. Let _onRejected_ be `"Thrower"`.
 1. Let _C_ be Get(_promise_, "constructor").
 1. ReturnIfAbrupt(_C_).
 1. Let _promiseCapability_ be NewPromiseCapability(_C_).
 1. ReturnIfAbrupt(_promiseCapability_).
-1. If IsCallable(_onFulfilled_) is **true**, then
-    1. Let _fulfillmentHandler_ be _onFulfilled_.
-1. Else,
-    1. Let _fulfillmentHandler_ be `"identity"`.
-1. If IsCallable(_onRejected_) is **true**, then
-    1. Let _rejectionHandler_ be _onRejected_.
-1. Else,
-    1. Let _rejectionHandler_ be `"thrower"`.
-1. Let _fulfillReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _fulfillmentHandler_ }.
-1. Let _rejectReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _rejectionHandler_ }.
+1. Let _fulfillReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _onFulfilled_ }.
+1. Let _rejectReaction_ be the PromiseReaction { [[Capabilities]]: _promiseCapability_, [[Handler]]: _onRejected_ }.
 1. If the value of _promise_'s [[PromiseState]] internal slot is `"pending"`,
     1. Append _fulfillReaction_ as the last element of the List that is the value of _promise_'s [[PromiseFulfillReactions]] internal slot.
     1. Append _rejectReaction_ as the last element of the List that is the value of _promise_'s [[PromiseRejectReactions]] internal slot.

@@ -145,7 +145,7 @@ When a promise resolve function _F_ is called with argument _resolution_, the fo
 1. Let _then_ be _then_.[[value]].
 1. If IsCallable(_then_) is **false**, then
     1. Return FulfillPromise(_promise_, _resolution_).
-1. Perform EnqueueTask(`"PromiseTasks"`, ResolvePromiseViaThenableTask, (_promise_, _thenable_, _then_)).
+1. Perform EnqueueTask(`"PromiseTasks"`, ResolvePromiseViaThenableTask, (_promise_, _resolution_, _then_)).
 1. Return **undefined**.
 
 ### FulfillPromise ( promise, value )

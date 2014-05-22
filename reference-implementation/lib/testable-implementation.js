@@ -293,7 +293,7 @@ function InitialisePromise(promise, executor) {
     try {
         executor.call(undefined, resolvingFunctions["[[Resolve]]"], resolvingFunctions["[[Reject]]"]);
     } catch (completionE) {
-        reject.call(undefined, completionE);
+        resolvingFunctions["[[Reject]]"].call(undefined, completionE);
     }
 
     return promise;

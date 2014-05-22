@@ -34,6 +34,25 @@ describe("Self-resolution errors", function () {
     });
 });
 
+specify("An abrupt completion of the executor function should result in a rejected promise", function () {
+    var promise;
+
+    assert.doesNotThrow(function () {
+        promise = OrdinaryConstruct(Promise, [function () { throw new Error(); }]);
+    });
+
+    promise.then(
+        function () {
+            assert(false, "Should not be fulfilled");
+            done();
+        },
+        function (err) {
+            assert(err instanceof Error);
+            done();
+        }
+    );
+});
+
 specify("Stealing a resolver and using it to trigger possible reentrancy bug (#83)", function () {
     var stolenResolver;
     function StealingPromiseConstructor(resolver) {

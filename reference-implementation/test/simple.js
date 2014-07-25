@@ -34,7 +34,7 @@ describe("Self-resolution errors", function () {
     });
 });
 
-specify("An abrupt completion of the executor function should result in a rejected promise", function () {
+specify("An abrupt completion of the executor function should result in a rejected promise", function (done) {
     var promise;
 
     assert.doesNotThrow(function () {

@@ -31,7 +31,7 @@ A promise whose fate is resolved can be in any of the three states:
 - Rejected, if it has been rejected directly, or resolved to a thenable which will call any passed rejection handler back as soon as possible, or resolved to another promise that is rejected.
 - Pending, if it has been resolved to a thenable which will call neither handler back as soon as possible, or resolved to another promise that is pending.
 
-A promise whose fate is unresolved is necessarily pending.
+A promise whose fate is unresolved is not necessarily pending.
 
 Note that these relations are recursive, e.g. a promise that has been resolved to a thenable which will call its fulfillment handler with a promise that has been rejected is itself rejected.
 

@@ -14,7 +14,7 @@ Any Promise object is in one of three mutually exclusive states: _fulfilled_, _r
 - A promise `p` is rejected if `p.then(f, r)` will immediately enqueue a Task to call the function `r`.
 - A promise is pending if it is neither fulfilled nor rejected.
 
-![thenable object states](https://github.com/hiteshsahu/promises-unwrapping/blob/master/docs/promise_state.png)
+![promise object states](https://github.com/hiteshsahu/promises-unwrapping/blob/master/docs/img/promise_object_states.png)
 
 A promise said to be _settled_ if it is not pending, i.e. if it is either fulfilled or rejected.
 

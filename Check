@@ -1,0 +1,99 @@
+// callback
+client.query('SELECT NOW() as now', (err, res) => {
+  if (err) {
+    console.log(err.stack)
+  } else {
+    console.log(res.rows[0])
+  }
+})
+// promise
+client
+  .query('SELECT NOW() as now')
+  .then(res => console.log(res.rows[0]))
+  .catch(e => console.error(e.stack))
+const text = 'INSERT INTO users(Justin, 33583jhs@gmail.com) VALUES($1, $2) RETURNING *'
+const values = ['kelli', 'kelliculpepper17@gmail.com']
+// callback
+client.query(text, values, (err, res) => {
+  if (err) {
+    console.log(err.stack)
+  } else {
+    console.log(res.rows[0])
+    // { name: 'brianc', email: 'brian.m.carlson@gmail.com' }
+  }
+})
+// promise
+client
+  .query(text, values)
+  .then(res => {
+    console.log(res.rows[0])
+    // { name: 'brianc', email: 'brian.m.carlson@gmail.com' }
+  })
+  .catch(e => console.error(e.stack))
+// async/await
+try {
+  const res = await client.query(text, values)
+  console.log(res.rows[0])
+  // { name: 'brianc', email: 'brian.m.carlson@gmail.com' }
+} catch (err) {
+  console.log(err.stack)
+}
+toPostgres (prepareValue: (value) => any): any
+const query = {
+  text: 'INSERT INTO users(name, email) VALUES($1, $2)',
+  values: ['brianc', 'brian.m.carlson@gmail.com'],
+}
+// callback
+client.query(query, (err, res) => {
+  if (err) {
+    console.log(err.stack)
+  } else {
+    console.log(res.rows[0])
+  }
+})
+// promise
+client
+  .query(query)
+  .then(res => console.log(res.rows[0]))
+  .catch(e => console.error(e.stack))
+const query = {
+  // give the query a unique name
+  name: 'fetch-user',
+  text: 'SELECT * FROM user WHERE id = $1',
+  values: [1],
+}
+// callback
+client.query(query, (err, res) => {
+  if (err) {
+    console.log(err.stack)
+  } else {
+    console.log(res.rows[0])
+  }
+})
+// promise
+client
+  .query(query)
+  .then(res => console.log(res.rows[0]))
+  .catch(e => console.error(e.stack))
+const query = {
+  text: 'SELECT $1::text as first_name, select $2::text as last_name',
+  values: ['Brian', 'Carlson'],
+  rowMode: 'array',
+}
+// callback
+client.query(query, (err, res) => {
+  if (err) {
+    console.log(err.stack)
+  } else {
+    console.log(res.fields.map(f => field.name)) // ['first_name', 'last_name']
+    console.log(res.rows[0]) // ['Brian', 'Carlson']
+  }
+})
+// promise
+client
+  .query(query)
+  .then(res => {
+    console.log(res.fields.map(f => field.name)) // ['first_name', 'last_name']
+    console.log(res.rows[0]) // ['Brian', 'Carlson']
+  })
+  .catch(e => console.error(e.stack))

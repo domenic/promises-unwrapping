@@ -1,0 +1,127 @@
+
+{
+  "id": string,
+  "creationTimestamp": string,
+  "name": string,
+  "description": string,
+  "selfLink": string,
+  "backends": [
+    {
+      "description": string,
+      "group": string,
+      "balancingMode": enum,
+      "maxUtilization": number,
+      "maxRate": integer,
+      "maxRatePerInstance": number,
+      "maxRatePerEndpoint": number,
+      "maxConnections": integer,
+      "maxConnectionsPerInstance": integer,
+      "maxConnectionsPerEndpoint": integer,
+      "capacityScaler": number,
+      "failover": boolean
+    }
+  ],
+  "healthChecks": [
+    string
+  ],
+  "timeoutSec": integer,
+  "port": integer,
+  "protocol": enum,
+  "fingerprint": string,
+  "portName": string,
+  "enableCDN": boolean,
+  "sessionAffinity": enum,
+  "affinityCookieTtlSec": integer,
+  "region": string,
+  "failoverPolicy": {
+    "disableConnectionDrainOnFailover": boolean,
+    "dropTrafficIfUnhealthy": boolean,
+    "failoverRatio": number
+  },
+  "loadBalancingScheme": enum,
+  "connectionDraining": {
+    "drainingTimeoutSec": integer
+  },
+  "iap": {
+    "enabled": boolean,
+    "oauth2ClientId": string,
+    "oauth2ClientSecret": string,
+    "oauth2ClientSecretSha256": string
+  },
+  "cdnPolicy": {
+    "cacheKeyPolicy": {
+      "includeProtocol": boolean,
+      "includeHost": boolean,
+      "includeQueryString": boolean,
+      "queryStringWhitelist": [
+        string
+      ],
+      "queryStringBlacklist": [
+        string
+      ]
+    },
+    "signedUrlKeyNames": [
+      string
+    ],
+    "signedUrlCacheMaxAgeSec": string
+  },
+  "customRequestHeaders": [
+    string
+  ],
+  "securityPolicy": string,
+  "logConfig": {
+    "enable": boolean,
+    "sampleRate": number
+  },
+  "securitySettings": {
+    "authentication": string,
+    "subjectAltNames": [
+      string
+    ]
+  },
+  "localityLbPolicy": enum,
+  "consistentHash": {
+    "httpCookie": {
+      "name": string,
+      "path": string,
+      "ttl": {
+        "seconds": string,
+        "nanos": integer
+      }
+    },
+    "httpHeaderName": string,
+    "minimumRingSize": string
+  },
+  "circuitBreakers": {
+    "connectTimeout": {
+      "seconds": string,
+      "nanos": integer
+    },
+    "maxRequestsPerConnection": integer,
+    "maxConnections": integer,
+    "maxPendingRequests": integer,
+    "maxRequests": integer,
+    "maxRetries": integer
+  },
+  "outlierDetection": {
+    "consecutiveErrors": integer,
+    "interval": {
+      "seconds": string,
+      "nanos": integer
+    },
+    "baseEjectionTime": {
+      "seconds": string,
+      "nanos": integer
+    },
+    "maxEjectionPercent": integer,
+    "enforcingConsecutiveErrors": integer,
+    "enforcingSuccessRate": integer,
+    "successRateMinimumHosts": integer,
+    "successRateRequestVolume": integer,
+    "successRateStdevFactor": integer,
+    "consecutiveGatewayFailure": integer,
+    "enforcingConsecutiveGatewayFailure": integer
+  },
+  "network": string,
+  "kind": string
+}
